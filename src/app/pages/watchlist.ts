@@ -15,7 +15,6 @@ const COLUMNS: { id: string; label: string; hint: string }[] = [
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Pipeline comercial</span>
         <h1>Acompanhadas</h1>
         <p>Oportunidades em triagem e análise, ordenadas pelo prazo mais próximo. Lembretes 72 h, 24 h e 3 h antes do encerramento.</p>
       </div>
@@ -79,15 +78,15 @@ const COLUMNS: { id: string; label: string; hint: string }[] = [
     button.on { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
     .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
     @media (max-width: 1100px) { .board { grid-template-columns: 1fr; } }
-    .column { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
+    .column { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px; }
     .col-head { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 4px 6px 12px; }
     .col-head p { grid-column: 1 / -1; }
-    .count { min-width: 24px; height: 22px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 12px; font-weight: 650; }
+    .count { min-width: 24px; height: 22px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
     .col-body { display: grid; gap: 10px; }
-    .wcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 13px; box-shadow: var(--shadow-sm); display: grid; gap: 10px; }
-    .wcard:hover { box-shadow: var(--shadow); }
+    .wcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 13px; box-shadow: var(--shadow-xs); display: grid; gap: 10px; }
+    .wcard:hover { box-shadow: var(--shadow-xs); }
     .w-main { display: grid; gap: 6px; color: inherit; text-decoration: none; }
-    .w-main:hover strong { color: var(--primary-ink); }
+    .w-main:hover strong { color: var(--accent-text); }
     .w-main strong { font-size: 13.5px; font-weight: 600; line-height: 1.4; }
     .fav { color: #f5b301; } .fav ::ng-deep svg { fill: #f5b301; }
     .w-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

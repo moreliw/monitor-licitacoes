@@ -12,7 +12,6 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Software para o Legislativo</span>
         <h1>Oportunidades</h1>
         <p>Licitações de processo legislativo, protocolo, gestão documental, e-SIC e portais para Câmaras e Assembleias de todo o Brasil.</p>
       </div>
@@ -33,33 +32,33 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
 
     <section class="kpis" aria-label="Resumo">
       <button class="kpi" [class.active]="quick() === 'abertas'" (click)="setQuick('abertas')">
-        <span class="k-label"><span class="k-icon"><app-icon name="target" [size]="15" /></span> Recebendo propostas</span>
+        <span class="k-label">Recebendo propostas</span>
         <span class="k-value">{{ fmtInt(s()?.['abertas']) }}</span>
         <span class="k-sub">+ {{ fmtInt(s()?.['futuras']) }} com abertura futura</span>
       </button>
       <button class="kpi" [class.active]="quick() === 'encerram7'" (click)="setQuick('encerram7')">
-        <span class="k-label"><span class="k-icon warn"><app-icon name="clock" [size]="15" /></span> Encerram em 7 dias</span>
+        <span class="k-label">Encerram em 7 dias</span>
         <span class="k-value">{{ fmtInt(s()?.['encerram7']) }}</span>
         <span class="k-sub">prazo de propostas próximo</span>
       </button>
       <button class="kpi" [class.active]="quick() === 'alta'" (click)="setQuick('alta')">
-        <span class="k-label"><span class="k-icon ok"><app-icon name="sparkles" [size]="15" /></span> Alta relevância</span>
+        <span class="k-label">Alta relevância</span>
         <span class="k-value">{{ fmtInt(s()?.['alta']) }}</span>
         <span class="k-sub">{{ fmtInt(s()?.['revisar']) }} para revisar · {{ fmtInt(s()?.['pendente']) }} pendentes</span>
       </button>
       <button class="kpi" [class.active]="quick() === 'acompanhadas'" (click)="setQuick('acompanhadas')">
-        <span class="k-label"><span class="k-icon"><app-icon name="bookmark" [size]="15" /></span> Acompanhadas</span>
+        <span class="k-label">Acompanhadas</span>
         <span class="k-value">{{ fmtInt(s()?.['watched']) }}</span>
         <span class="k-sub">com lembretes de prazo</span>
       </button>
     </section>
 
-    <section class="card toolbar" aria-label="Filtros">
+    <section class="filters" aria-label="Filtros">
       <div class="row tb-main">
         <form class="search grow" (ngSubmit)="search()" role="search">
-          <app-icon name="search" [size]="16" />
+          <app-icon name="search" [size]="15" />
           <label class="sr-only" for="q">Buscar</label>
-          <input id="q" type="search" name="q" [(ngModel)]="text" (ngModelChange)="debounced()" placeholder="Buscar por órgão, município, objeto, itens ou texto do edital" autocomplete="off" />
+          <input id="q" type="search" name="q" [(ngModel)]="text" (ngModelChange)="debounced()" placeholder="Buscar órgão, município, objeto, item ou trecho do edital" autocomplete="off" />
         </form>
         <label class="sr-only" for="uf">UF</label>
         <select id="uf" class="uf" [(ngModel)]="uf" (ngModelChange)="search()">
@@ -70,24 +69,20 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
         <select id="sort" class="sort" [(ngModel)]="sort" (ngModelChange)="search()">
           <option value="relevancia">Mais relevantes</option>
           <option value="prazo">Prazo mais próximo</option>
-          <option value="publicacao">Publicação mais recente</option>
+          <option value="publicacao">Mais recentes</option>
           <option value="valor">Maior orçamento</option>
           <option value="orgao">Órgão (A–Z)</option>
         </select>
-        <button class="icon" [class.on]="more()" (click)="more.set(!more())" [attr.aria-expanded]="more()" aria-label="Mais filtros" title="Mais filtros"><app-icon name="filter" [size]="16" /></button>
+        <button [class.on]="more()" (click)="more.set(!more())" [attr.aria-expanded]="more()"><app-icon name="filter" [size]="14" /> Filtros</button>
       </div>
       <div class="row chips-row">
-        <span class="muted small">Relevância</span>
-        <div class="chips">
+        <div class="chips" role="group" aria-label="Relevância">
           @for (r of relevancias; track r[0]) {
-            <button class="chip" [attr.aria-pressed]="relevancia.includes(r[0])" (click)="toggle(relevancia, r[0])">
-              <span class="dot" [class]="'dot d-' + r[0]"></span>{{ r[1] }}
-            </button>
+            <button class="chip" [attr.aria-pressed]="relevancia.includes(r[0])" (click)="toggle(relevancia, r[0])">{{ r[1] }}</button>
           }
         </div>
         <span class="divider"></span>
-        <span class="muted small">Situação</span>
-        <div class="chips">
+        <div class="chips" role="group" aria-label="Situação">
           @for (st of estados; track st) {
             <button class="chip" [attr.aria-pressed]="estado.includes(st)" (click)="toggle(estado, st)">{{ st }}</button>
           }
@@ -96,15 +91,15 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
       </div>
       @if (more()) {
         <div class="row more fade-in">
+          <span class="muted small">Modalidade</span>
           <div class="chips">
-            <span class="muted small">Modalidade</span>
             @for (m of modalidades; track m[0]) {
               <button class="chip" [attr.aria-pressed]="modalidade.includes(m[0])" (click)="toggle(modalidade, m[0])">{{ m[1] }}</button>
             }
           </div>
           <label class="sr-only" for="saved">Filtros salvos</label>
           <select id="saved" class="saved right" [(ngModel)]="savedId" (ngModelChange)="applySaved()">
-            <option [ngValue]="null">Filtros salvos…</option>
+            <option [ngValue]="null">Filtros salvos</option>
             @for (f of saved(); track f['id']) { <option [ngValue]="f['id']">{{ f['name'] }}</option> }
           </select>
           @if (savedId) { <button class="sm ghost danger" (click)="deleteSaved()">Excluir</button> }
@@ -115,116 +110,111 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
     @if (error()) { <div class="banner bad"><app-icon name="alert" /> {{ error() }}</div> }
     @if (info()) { <div class="banner info"><app-icon name="info" /> {{ info() }}</div> }
 
-    <div class="list-head">
-      <strong aria-live="polite">{{ fmtInt(total()) }} {{ total() === 1 ? 'oportunidade' : 'oportunidades' }}</strong>
-      @if (lastRun(); as lr) {
-        @if (lr['stats'].discarded !== undefined) {
-          <span class="muted small">· última coleta analisou {{ fmtInt(lr['stats'].records) }} contratações e descartou {{ fmtInt(lr['stats'].discarded) }} fora do nicho</span>
+    <div class="card list-card">
+      <div class="list-head">
+        <span aria-live="polite"><strong>{{ fmtInt(total()) }}</strong><span class="muted">&nbsp;{{ total() === 1 ? 'oportunidade' : 'oportunidades' }}</span></span>
+        @if (lastRun(); as lr) {
+          @if (lr['stats'].discarded !== undefined) {
+            <span class="muted small right">Última coleta: {{ fmtInt(lr['stats'].records) }} analisadas, {{ fmtInt(lr['stats'].discarded) }} fora do nicho</span>
+          }
         }
+      </div>
+
+      @if (loading() && rows().length === 0) {
+        @for (i of [1,2,3,4]; track i) { <div class="item skel"><div class="skeleton" style="height:14px;width:55%"></div><div class="skeleton" style="height:12px;width:35%;margin-top:10px"></div></div> }
+      } @else if (rows().length === 0) {
+        <div class="empty">
+          <div class="e-icon"><app-icon name="inbox" [size]="20" /></div>
+          @if (!hasFilters() && quick() === 'todas') {
+            <h2>Nenhuma oportunidade ainda</h2>
+            <p>A coleta analisa todas as contratações do PNCP e guarda só as do nicho. Ela continua em segundo plano.</p>
+            <button class="primary" (click)="api.raw?.sync.run()">Sincronizar agora</button>
+          } @else {
+            <h2>Nada encontrado</h2>
+            <p>Nenhuma oportunidade corresponde aos filtros atuais.</p>
+            <button (click)="clear()">Limpar filtros</button>
+          }
+        </div>
+      } @else {
+        <div class="list" [class.dim]="loading()">
+          @for (r of rows(); track r['id']) {
+            <article class="item">
+              <button class="star" [class.on]="!!r['favorito']" (click)="toggleFav(r)" [attr.aria-pressed]="!!r['favorito']" [attr.aria-label]="r['favorito'] ? 'Remover dos favoritos' : 'Favoritar'">
+                <app-icon name="star" [size]="15" [stroke]="1.75" />
+              </button>
+              <a class="main" [routerLink]="['/oportunidade', r['id']]">
+                <span class="obj clamp-2" [title]="r['objeto']">{{ r['objeto'] }}</span>
+                <span class="meta">
+                  <span class="org ellipsis">{{ r['orgao_nome'] }}</span>
+                  <span class="sep">·</span><span>{{ r['municipio'] }}/{{ r['uf'] }}</span>
+                  <span class="sep">·</span><span>{{ r['modalidade_nome'] }}</span>
+                  <span class="sep">·</span><span>publicada {{ fmtDay(r['data_publicacao']) }}</span>
+                </span>
+                <span class="tags">
+                  <span class="badge" [class]="'badge b-' + r['relevance']">{{ labelText[r['relevance']] }}</span>
+                  <span class="badge" [class]="'badge ' + stateTone(r['derived_state'])">{{ r['derived_state'] }}</span>
+                  @if (r['watch_status']) { <span class="badge b-primary">{{ watchText[r['watch_status']] }}</span> }
+                  @if (r['manual']) { <span class="small muted">decisão manual</span> }
+                </span>
+              </a>
+              <div class="side-info">
+                <span class="dl-date num">{{ fmtDate(r['encerramento_utc']) }}</span>
+                @if (r['derived_state'] === 'Recebendo propostas') {
+                  <span class="dl-rel" [class]="'dl-rel t-' + deadlineTone(r['encerramento_utc'], r['derived_state'])">encerra {{ fmtRelative(r['encerramento_utc']) }}</span>
+                } @else { <span class="dl-rel muted">prazo de propostas</span> }
+                <span class="value num">{{ fmtMoney(r['valor_estimado_cents'], r['orcamento_sigiloso']) }}</span>
+              </div>
+            </article>
+          }
+        </div>
+        <nav class="pager" aria-label="Paginação">
+          <span class="muted small">Página {{ page() }} de {{ pages() }}</span>
+          <span class="right row" style="gap:6px">
+            <button class="sm" (click)="goto(page() - 1)" [disabled]="page() <= 1" aria-label="Página anterior"><app-icon name="chevronLeft" [size]="14" /> Anterior</button>
+            <button class="sm" (click)="goto(page() + 1)" [disabled]="page() >= pages()" aria-label="Próxima página">Próxima <app-icon name="chevronRight" [size]="14" /></button>
+          </span>
+        </nav>
       }
     </div>
-
-    @if (loading() && rows().length === 0) {
-      <div class="list">@for (i of [1,2,3,4]; track i) { <div class="item skel"><div class="skeleton" style="height:16px;width:60%"></div><div class="skeleton" style="height:12px;width:40%;margin-top:10px"></div></div> }</div>
-    } @else if (rows().length === 0) {
-      <div class="card empty">
-        <div class="e-icon"><app-icon name="inbox" [size]="26" /></div>
-        @if (!hasFilters() && quick() === 'todas') {
-          <h2>Nenhuma oportunidade ainda</h2>
-          <p>A coleta analisa todas as contratações do PNCP e guarda só as do nicho. Ela continua em segundo plano.</p>
-          <button class="primary" (click)="api.raw?.sync.run()"><app-icon name="refresh" [size]="15" /> Sincronizar agora</button>
-        } @else {
-          <h2>Nada encontrado com esses filtros</h2>
-          <button (click)="clear()">Limpar filtros</button>
-        }
-      </div>
-    } @else {
-      <div class="list" [class.dim]="loading()">
-        @for (r of rows(); track r['id']) {
-          <article class="item" [class]="'item rel-' + r['relevance']">
-            <button class="star" [class.on]="!!r['favorito']" (click)="toggleFav(r)" [attr.aria-pressed]="!!r['favorito']" [attr.aria-label]="r['favorito'] ? 'Remover dos favoritos' : 'Favoritar'">
-              <app-icon name="star" [size]="17" />
-            </button>
-            <a class="main" [routerLink]="['/oportunidade', r['id']]">
-              <div class="row tags">
-                <span class="badge" [class]="'badge b-' + r['relevance']">{{ labelText[r['relevance']] }}</span>
-                <span class="badge" [class]="'badge ' + stateTone(r['derived_state'])">{{ r['derived_state'] }}</span>
-                @if (r['watch_status']) { <span class="badge plain b-primary"><app-icon name="bookmark" [size]="11" /> {{ watchText[r['watch_status']] }}</span> }
-                @if (r['manual']) { <span class="small muted">decisão manual</span> }
-              </div>
-              <h3 class="obj clamp-2" [title]="r['objeto']">{{ r['objeto'] }}</h3>
-              <div class="meta">
-                <span><app-icon name="building" [size]="13" /> {{ r['orgao_nome'] }}</span>
-                <span><app-icon name="pin" [size]="13" /> {{ r['municipio'] }}/{{ r['uf'] }}</span>
-                <span>{{ r['modalidade_nome'] }}</span>
-                <span>Publicada {{ fmtDay(r['data_publicacao']) }}</span>
-              </div>
-            </a>
-            <div class="side-info">
-              <div class="deadline" [class]="'deadline t-' + deadlineTone(r['encerramento_utc'], r['derived_state'])">
-                <span class="dl-label">Propostas até</span>
-                <strong class="num">{{ fmtDate(r['encerramento_utc']) }}</strong>
-                @if (r['derived_state'] === 'Recebendo propostas') { <span class="dl-rel">{{ fmtRelative(r['encerramento_utc']) }}</span> }
-              </div>
-              <div class="value num">{{ fmtMoney(r['valor_estimado_cents'], r['orcamento_sigiloso']) }}</div>
-            </div>
-          </article>
-        }
-      </div>
-      <nav class="pager" aria-label="Paginação">
-        <button class="sm" (click)="goto(page() - 1)" [disabled]="page() <= 1"><app-icon name="chevronLeft" [size]="14" /> Anterior</button>
-        <span class="muted small">Página {{ page() }} de {{ pages() }}</span>
-        <button class="sm" (click)="goto(page() + 1)" [disabled]="page() >= pages()">Próxima <app-icon name="chevronRight" [size]="14" /></button>
-      </nav>
-    }
   `,
   styles: `
-    .k-icon.warn { background: var(--warn-soft); color: var(--warn); }
-    .k-icon.ok { background: var(--ok-soft); color: var(--ok); }
-    .toolbar { padding: 14px 16px; display: grid; gap: 12px; margin-bottom: 16px; }
+    .filters { display: grid; gap: 12px; margin-bottom: 16px; }
     .tb-main { gap: 8px; flex-wrap: nowrap; }
-    .uf { width: 150px; height: 40px; }
-    .sort { width: 210px; height: 40px; }
-    .tb-main > button.icon { height: 40px; width: 40px; }
-    button.icon.on { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--primary); }
-    .chips-row { gap: 8px; }
-    .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-    .more { padding-top: 10px; border-top: 1px dashed var(--border); }
-    .saved { width: 220px; }
-    .dot.d-alta { background: var(--ok); } .dot.d-revisar { background: var(--warn); } .dot.d-pendente { background: var(--info); } .dot.d-fora { background: var(--neutral); }
-    .list-head { display: flex; align-items: baseline; gap: 6px; margin: 4px 2px 10px; }
-    .list { display: grid; gap: 10px; transition: opacity .2s; }
-    .list.dim { opacity: .6; }
+    .uf { width: 140px; }
+    .sort { width: 190px; }
+    .tb-main button.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-text); }
+    .chips-row { gap: 10px; }
+    .more { padding: 12px 0 0; border-top: 1px solid var(--border); }
+    .saved { width: 200px; }
+    .list-card { overflow: hidden; }
+    .list-head { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .list { transition: opacity .15s; }
+    .list.dim { opacity: .55; }
     .item {
-      position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 15px 18px 15px 14px;
-      box-shadow: var(--shadow-sm); transition: border-color .15s var(--ease), box-shadow .15s var(--ease), transform .15s var(--ease);
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) 190px; gap: 12px; align-items: start;
+      padding: 16px 20px 16px 12px; border-bottom: 1px solid var(--border); transition: background .1s;
     }
-    .item::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--neutral-soft); }
-    .item.rel-alta::before { background: var(--ok); } .item.rel-revisar::before { background: var(--warn); } .item.rel-pendente::before { background: var(--info); }
-    .item:hover { border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-1px); }
-    .item.skel { display: block; padding: 20px; }
-    .main { color: inherit; text-decoration: none; display: grid; gap: 7px; min-width: 0; }
+    .item:last-child { border-bottom: 0; }
+    .item:hover { background: var(--surface-2); }
+    .item.skel { display: block; padding: 18px 20px; }
+    .main { color: inherit; text-decoration: none; display: grid; gap: 6px; min-width: 0; }
     .main:hover { text-decoration: none; }
-    .main:hover .obj { color: var(--primary-ink); }
-    .tags { gap: 6px; }
-    .obj { font-family: var(--font); font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; transition: color .15s; }
-    .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12.5px; }
-    .meta span { display: inline-flex; align-items: center; gap: 5px; }
-    .star { width: 32px; height: 32px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--faint); margin-top: 1px; }
-    .star:hover:not(:disabled) { background: var(--surface-3); color: var(--warn); }
-    .star.on { color: #f5b301; }
-    .star.on ::ng-deep svg { fill: #f5b301; }
-    .side-info { display: grid; gap: 8px; justify-items: end; text-align: right; min-width: 170px; }
-    .deadline { display: grid; justify-items: end; gap: 1px; padding: 7px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
-    .dl-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 650; }
-    .deadline strong { font-size: 13px; }
-    .dl-rel { font-size: 11.5px; font-weight: 650; }
-    .t-bad { background: var(--bad-soft); border-color: transparent; } .t-bad .dl-rel { color: var(--bad); }
-    .t-warn { background: var(--warn-soft); border-color: transparent; } .t-warn .dl-rel { color: var(--warn); }
-    .t-ok .dl-rel { color: var(--ok); }
-    .value { font-weight: 650; font-size: 13.5px; color: var(--text-2); }
-    .pager { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 18px; }
+    .main:hover .obj { text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    .obj { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.45; letter-spacing: -.006em; }
+    .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--muted); font-size: 12.5px; min-width: 0; }
+    .meta .org { max-width: 360px; color: var(--text-2); }
+    .meta .sep { color: var(--faint); }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+    .star { width: 28px; height: 28px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--faint); }
+    .star:hover:not(:disabled) { background: var(--hover); color: var(--text-2); }
+    .star.on { color: #d97706; }
+    .star.on ::ng-deep svg { fill: #f59e0b; stroke: #d97706; }
+    .side-info { display: grid; gap: 2px; justify-items: end; text-align: right; }
+    .dl-date { font-size: 13px; font-weight: 500; color: var(--text); }
+    .dl-rel { font-size: 12px; }
+    .dl-rel.t-bad { color: var(--bad); font-weight: 500; } .dl-rel.t-warn { color: var(--warn); font-weight: 500; } .dl-rel.t-ok { color: var(--ok); } .dl-rel.t-neutral { color: var(--muted); }
+    .value { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+    .pager { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); }
   `,
 })
 export class OpportunitiesPage implements OnInit, OnDestroy {

@@ -9,7 +9,6 @@ import { Icon } from '../icon';
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Preferências</span>
         <h1>Configurações</h1>
         <p>Coleta, limites, alertas, comportamento no Windows, regras de relevância e atualizações.</p>
       </div>
@@ -28,7 +27,6 @@ import { Icon } from '../icon';
         <section class="card" id="atualizacoes">
           <div class="card-head"><div class="grow"><h2>Atualizações</h2><p>Novas versões são baixadas em segundo plano; instale com um clique.</p></div></div>
           <div class="card-body upd">
-            <div class="u-badge"><app-icon name="sparkles" [size]="20" /></div>
             <div class="grow">
               <strong>Versão instalada {{ upd()?.['currentVersion'] ?? '—' }}</strong>
               <p class="muted small">{{ updText() }}</p>
@@ -127,16 +125,15 @@ import { Icon } from '../icon';
   styles: `
     .layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 22px; align-items: start; }
     .toc { position: sticky; top: 0; display: grid; gap: 2px; }
-    .toc a { padding: 7px 10px; border-radius: 8px; color: var(--text-2); font-size: 13px; font-weight: 560; }
+    .toc a { padding: 7px 10px; border-radius: 8px; color: var(--text-2); font-size: 13px; font-weight: 500; }
     .toc a:hover { background: var(--surface-3); text-decoration: none; }
     .grid-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px 16px; }
     .wide { grid-column: span 2; }
     .toggles { display: grid; gap: 14px; }
     .code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; line-height: 1.5; }
     .upd { display: flex; gap: 14px; align-items: flex-start; }
-    .u-badge { width: 44px; height: 44px; border-radius: 12px; background: var(--brand-grad); color: #fff; display: grid; place-items: center; flex: none; }
     .bar { height: 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; margin-top: 8px; max-width: 360px; }
-    .bar span { display: block; height: 100%; background: var(--brand-grad); }
+    .bar span { display: block; height: 100%; background: var(--accent); }
     .notes { margin-top: 8px; padding: 10px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; max-height: 140px; overflow: auto; }
     .saved-msg { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-weight: 600; font-size: 13px; }
   `,

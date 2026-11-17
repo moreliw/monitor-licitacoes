@@ -11,7 +11,6 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Inteligência de mercado</span>
         <h1>Mercado de software</h1>
         <p>Todas as contratações de software encontradas no PNCP, de qualquer órgão, agrupadas pelo tipo de produto pedido.</p>
       </div>
@@ -51,13 +50,13 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
 
     @if (ov(); as o) {
       <section class="kpis" aria-label="Resumo do mercado">
-        <div class="kpi"><span class="k-label"><span class="k-icon"><app-icon name="layers" [size]="15" /></span> Contratações de software</span>
+        <div class="kpi"><span class="k-label">Contratações de software</span>
           <span class="k-value">{{ fmtInt(o['kpis'].total) }}</span><span class="k-sub">{{ o['byCategory'].length }} categorias de produto</span></div>
-        <div class="kpi"><span class="k-label"><span class="k-icon ok"><app-icon name="wallet" [size]="15" /></span> Valor estimado somado</span>
+        <div class="kpi"><span class="k-label">Valor estimado somado</span>
           <span class="k-value">{{ fmtCompactMoney(o['kpis'].valor) }}</span><span class="k-sub">orçamentos publicados (sigilosos fora)</span></div>
-        <div class="kpi"><span class="k-label"><span class="k-icon"><app-icon name="building" [size]="15" /></span> Órgãos compradores</span>
+        <div class="kpi"><span class="k-label">Órgãos compradores</span>
           <span class="k-value">{{ fmtInt(o['kpis'].orgaos) }}</span><span class="k-sub">em {{ fmtInt(o['kpis'].municipios) }} municípios</span></div>
-        <div class="kpi"><span class="k-label"><span class="k-icon warn"><app-icon name="target" [size]="15" /></span> Abertas agora</span>
+        <div class="kpi"><span class="k-label">Abertas agora</span>
           <span class="k-value">{{ fmtInt(o['kpis'].abertas) }}</span><span class="k-sub">recebendo propostas ou com abertura futura</span></div>
       </section>
 
@@ -149,7 +148,7 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
 
         <section class="card" style="margin-top:16px" aria-labelledby="h-buy">
           <div class="card-head"><div><h2 id="h-buy">Maiores compradores de software</h2><p>Órgãos com mais contratações no período</p></div></div>
-          <div class="card-body table-wrap" style="padding-top:8px">
+          <div class="table-wrap">
             <table>
               <thead><tr><th>Órgão</th><th>UF</th><th class="r">Contratações</th><th class="r">Valor estimado</th></tr></thead>
               <tbody>
@@ -178,7 +177,7 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
               <option value="valor">Maior valor</option><option value="publicacao">Mais recentes</option><option value="prazo">Prazo mais próximo</option>
             </select>
           </div>
-          <div class="card-body table-wrap">
+          <div class="table-wrap">
             <table>
               <thead><tr><th>Objeto</th><th>Órgão</th><th>Categoria</th><th>Situação</th><th class="r">Valor</th><th></th></tr></thead>
               <tbody>
@@ -215,8 +214,6 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
   styles: `
     .toolbar { padding: 12px 16px; margin-bottom: 16px; }
     .divider { width: 1px; height: 20px; background: var(--border); }
-    .k-icon.warn { background: var(--warn-soft); color: var(--warn); }
-    .k-icon.ok { background: var(--ok-soft); color: var(--ok); }
     .grid-main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
     @media (max-width: 1180px) { .grid-main { grid-template-columns: 1fr; } }
     .ranking { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -225,8 +222,8 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
       padding: 9px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; box-shadow: none; text-align: left; font-weight: 400;
     }
     .rank-row:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border); }
-    .rank-row.sel { background: var(--primary-soft); border-color: var(--primary); }
-    .pos { color: var(--faint); font-weight: 650; font-size: 12px; text-align: center; }
+    .rank-row.sel { background: var(--accent-soft); border-color: var(--accent); }
+    .pos { color: var(--faint); font-weight: 600; font-size: 12px; text-align: center; }
     .lbl { display: grid; gap: 6px; min-width: 0; }
     .name { font-size: 13px; font-weight: 600; color: var(--text); display: flex; gap: 8px; align-items: center; }
     .track { display: block; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
@@ -239,11 +236,11 @@ const ESFERAS: [string, string][] = [['M', 'Municipal'], ['E', 'Estadual'], ['F'
     .col:hover .c-bar { filter: brightness(1.15); }
     .c-val { font-size: 10.5px; color: var(--muted); }
     .c-lbl { font-size: 10px; color: var(--faint); white-space: nowrap; }
-    .hbar { display: grid; grid-template-columns: 78px 1fr 52px; align-items: center; gap: 10px; padding: 5px 0; font-size: 12.5px; width: 100%; }
+    .hbar { display: grid; grid-template-columns: 104px 1fr 52px; align-items: center; gap: 10px; padding: 5px 0; font-size: 12.5px; width: 100%; }
     .hbar.as-btn { height: auto; border: 0; background: none; box-shadow: none; font-weight: 400; padding: 5px 4px; border-radius: 8px; text-align: left; }
     .hbar.as-btn:hover:not(:disabled) { background: var(--surface-2); }
-    .hb-l { color: var(--text-2); font-weight: 560; }
-    .hb-v { text-align: right; font-weight: 650; }
+    .hb-l { color: var(--text-2); font-weight: 500; }
+    .hb-v { text-align: right; font-weight: 600; }
     .pager { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 4px 0 16px; }
   `,
 })

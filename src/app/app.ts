@@ -17,10 +17,10 @@ export class App {
   protected readonly nav = computed(() => {
     const s = this.api.stats();
     return [
-      { path: '/oportunidades', label: 'Oportunidades', icon: 'target', count: s?.['abertas'] ? `${s['abertas']}` : null, hint: 'abertas' },
-      { path: '/acompanhadas', label: 'Acompanhadas', icon: 'bookmark', count: s?.['watched'] ? `${s['watched']}` : null, hint: 'acompanhadas' },
+      { path: '/oportunidades', label: 'Oportunidades', icon: 'target', count: s?.['abertas'] ? `${s['abertas']}` : null, hint: 'abertas', alert: false },
+      { path: '/acompanhadas', label: 'Acompanhadas', icon: 'bookmark', count: s?.['watched'] ? `${s['watched']}` : null, hint: 'acompanhadas', alert: false },
       { path: '/alertas', label: 'Alertas', icon: 'bell', count: s?.['unread'] ? `${s['unread']}` : null, hint: 'não lidos', alert: true },
-      { path: '/mercado', label: 'Mercado de software', icon: 'chart', count: null, hint: '' },
+      { path: '/mercado', label: 'Mercado de software', icon: 'chart', count: null, hint: '', alert: false },
     ];
   });
   protected readonly system = [
@@ -44,6 +44,6 @@ export class App {
     const t = this.api.theme();
     this.api.setTheme(t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto');
   }
-  protected themeLabel(): string { const t = this.api.theme(); return t === 'auto' ? 'Tema do sistema' : t === 'light' ? 'Tema claro' : 'Tema escuro'; }
+  protected themeLabel(): string { const t = this.api.theme(); return t === 'auto' ? 'Automático' : t === 'light' ? 'Claro' : 'Escuro'; }
   protected themeIcon(): string { const t = this.api.theme(); return t === 'auto' ? 'monitor' : t === 'light' ? 'sun' : 'moon'; }
 }

@@ -16,7 +16,6 @@ const KIND: Record<string, { icon: string; tone: string }> = {
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Central de alertas</span>
         <h1>Alertas</h1>
         <p>Novas publicações do nicho, mudanças de prazo ou situação e lembretes. Ficam salvos mesmo se o Windows bloquear as notificações.</p>
       </div>
@@ -59,17 +58,15 @@ const KIND: Record<string, { icon: string; tone: string }> = {
     }
   `,
   styles: `
-    .feed { list-style: none; margin: 0; padding: 6px; }
-    .feed li { display: flex; gap: 14px; padding: 14px; border-radius: 12px; position: relative; }
-    .feed li + li { border-top: 1px solid var(--border); border-radius: 0; }
-    .feed li.unread { background: linear-gradient(90deg, var(--primary-soft), transparent 70%); }
-    .feed li.scheduled { opacity: .75; }
-    .a-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
-    .t-ok { background: var(--ok-soft); color: var(--ok); } .t-warn { background: var(--warn-soft); color: var(--warn); }
-    .t-bad { background: var(--bad-soft); color: var(--bad); } .t-info { background: var(--info-soft); color: var(--info); }
-    .t-primary { background: var(--primary-soft); color: var(--primary); }
+    .feed { list-style: none; margin: 0; padding: 0; }
+    .feed li { display: flex; gap: 14px; padding: 16px 20px; position: relative; }
+    .feed li + li { border-top: 1px solid var(--border); }
+    .feed li.unread::before { content: ''; position: absolute; left: 8px; top: 24px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .feed li.scheduled { opacity: .7; }
+    .a-icon { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; flex: none; border: 1px solid var(--border); color: var(--muted); }
+    .t-bad { color: var(--bad); } .t-warn { color: var(--warn); }
     pre { margin-top: 4px; font-size: 13px; }
-    .a-actions { margin-top: 8px; font-size: 13px; font-weight: 560; }
+    .a-actions { margin-top: 8px; font-size: 13px; font-weight: 500; }
     .a-actions a { display: inline-flex; align-items: center; gap: 4px; }
   `,
 })

@@ -8,7 +8,6 @@ import { Icon } from '../icon';
   template: `
     <header class="page-head">
       <div class="titles">
-        <span class="eyebrow">Coleta</span>
         <h1>Fontes e sincronização</h1>
         <p>Saúde da coleta do PNCP, janelas pendentes, falhas e histórico de execuções.</p>
       </div>
@@ -21,7 +20,6 @@ import { Icon } from '../icon';
 
     @for (s of overview()?.['sources'] ?? []; track s['id']) {
       <section class="card status-hero" [class.warn]="s['stale']">
-        <div class="sh-icon"><app-icon [name]="s['stale'] ? 'alert' : 'shield'" [size]="22" /></div>
         <div class="grow">
           <div class="row" style="gap:8px"><h2>{{ s['label'] }}</h2>
             <span class="badge" [class]="s['stale'] ? 'badge b-warn' : 'badge b-ok'">{{ s['stale'] ? 'Base desatualizada' : 'Coleta em dia' }}</span></div>
@@ -61,7 +59,7 @@ import { Icon } from '../icon';
     <div class="two">
       <section class="card">
         <div class="card-head"><h2 class="grow">Fila</h2><span class="muted small">{{ jobs().length }} itens</span></div>
-        <div class="card-body table-wrap" style="max-height:320px">
+        <div class="table-wrap" style="max-height:320px">
           @if (jobs().length === 0) { <p class="muted">Nada pendente.</p> } @else {
             <table><thead><tr><th>Partição</th><th>Estado</th><th class="r">Tent.</th><th>Último erro</th></tr></thead>
               <tbody>@for (j of jobs(); track j['id']) {
@@ -73,10 +71,10 @@ import { Icon } from '../icon';
       </section>
       <section class="card">
         <div class="card-head"><h2 class="grow">Execuções</h2></div>
-        <div class="card-body table-wrap" style="max-height:320px">
+        <div class="table-wrap" style="max-height:320px">
           <table><thead><tr><th>Início</th><th>Gatilho</th><th>Estado</th><th class="r">Analisadas</th><th class="r">Software</th><th class="r">Nicho</th></tr></thead>
             <tbody>@for (r of runs(); track r['id']) {
-              <tr><td class="num">{{ fmtDate(r['started_at']) }}</td><td>{{ r['trigger'] }}</td>
+              <tr><td class="num nowrap">{{ fmtDate(r['started_at']) }}</td><td>{{ r['trigger'] }}</td>
                 <td><span class="badge" [class]="r['status'] === 'concluido' ? 'badge b-ok' : r['status'] === 'erro' ? 'badge b-bad' : 'badge b-neutral'">{{ r['status'] }}</span></td>
                 <td class="r num">{{ fmtInt(r['stats'].records) }}</td><td class="r num">{{ r['stats'].software ?? '—' }}</td>
                 <td class="r num">{{ r['stats'].discarded !== undefined ? fmtInt(r['stats'].records - r['stats'].discarded) : '—' }}</td></tr>
@@ -92,10 +90,10 @@ import { Icon } from '../icon';
           @for (l of levels; track l[0]) { <button [attr.aria-pressed]="level === l[0]" (click)="setLevel(l[0])">{{ l[1] }}</button> }
         </div>
       </div>
-      <div class="card-body table-wrap" style="max-height:360px">
+      <div class="table-wrap" style="max-height:360px">
         <table><thead><tr><th>Quando</th><th>Nível</th><th>Rota</th><th>Mensagem</th></tr></thead>
           <tbody>@for (l of logs(); track l['id']) {
-            <tr><td class="num small">{{ fmtDate(l['ts']) }}</td>
+            <tr><td class="num small nowrap">{{ fmtDate(l['ts']) }}</td>
               <td><span class="badge" [class]="'badge ' + (l['level'] === 'error' ? 'b-bad' : l['level'] === 'warn' ? 'b-warn' : 'b-neutral')">{{ l['level'] === 'error' ? 'erro' : l['level'] === 'warn' ? 'aviso' : 'info' }}</span></td>
               <td class="mono small">{{ l['route'] || l['window'] || '—' }}</td><td>{{ l['message'] }}</td></tr>
           }</tbody></table>
@@ -105,16 +103,14 @@ import { Icon } from '../icon';
   `,
   styles: `
     .status-hero { display: flex; gap: 16px; align-items: center; padding: 18px 20px; margin-bottom: 16px; }
-    .sh-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: var(--ok-soft); color: var(--ok); }
-    .status-hero.warn .sh-icon { background: var(--warn-soft); color: var(--warn); }
     .k-value.sm { font-size: 22px; }
     .k-value.bad { color: var(--bad); }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
     @media (max-width: 1150px) { .two { grid-template-columns: 1fr; } }
     .live { display: grid; gap: 10px; }
-    .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+    .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
     .bar { height: 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
-    .bar span { display: block; height: 100%; background: var(--brand-grad); transition: width .4s var(--ease); }
+    .bar span { display: block; height: 100%; background: var(--accent); transition: width .4s var(--ease); }
   `,
 })
 export class SourcesPage implements OnInit {

@@ -71,11 +71,18 @@ function createWindow(): void {
     win.webContents.on('console-message', (e: any) => console.log('[renderer]', e.level ?? '', e.message ?? ''));
     const routes = (argOf('--routes') ?? '/oportunidades').split(',');
     const wait = Number(argOf('--wait') ?? '8000');
+    const size = argOf('--size')?.split('x').map(Number);
+    if (size?.length === 2 && size.every((n) => n > 0)) win.setContentSize(size[0], size[1]);
+    const theme = argOf('--theme');
     win.webContents.once('did-finish-load', () => {
+      if (theme === 'dark' || theme === 'light') void win?.webContents.executeJavaScript(`localStorage.setItem('tema','${theme}');document.documentElement.setAttribute('data-theme','${theme}')`);
       setTimeout(async () => {
         for (const [i, r] of routes.entries()) {
           win?.webContents.send('navigate', r);
-          await new Promise((res) => setTimeout(res, 5000));
+          await new Promise((res) => setTimeout(res, 4000));
+          win?.webContents.invalidate();
+          await win!.webContents.capturePage(); // descarta o quadro antigo
+          await new Promise((res) => setTimeout(res, 800));
           const img = await win!.webContents.capturePage();
           fs.writeFileSync(shot.replace('.png', `-${i}.png`), img.toPNG());
         }

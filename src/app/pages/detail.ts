@@ -92,7 +92,7 @@ const GROUP_TEXT: Record<string, string> = {
 
           <section class="card" aria-labelledby="h-it">
             <div class="card-head"><h2 id="h-it" class="grow">Itens <span class="muted">({{ o['items'].length }})</span></h2></div>
-            <div class="card-body table-wrap">
+            <div class="table-wrap">
               @if (o['items'].length === 0) { <p class="muted">Itens ainda não coletados.</p> } @else {
                 <table>
                   <thead><tr><th>#</th><th>Descrição</th><th class="r">Qtde</th><th>Unid.</th><th class="r">Total do item</th></tr></thead>
@@ -159,7 +159,7 @@ const GROUP_TEXT: Record<string, string> = {
 
         <aside class="stack aside">
           <section class="card deadline-card" [class]="'card deadline-card t-' + deadlineTone(o['encerramento_utc'], o['derived_state'])">
-            <span class="eyebrow">Encerramento de propostas</span>
+            <span class="muted small">Encerramento de propostas</span>
             <div class="big num">{{ fmtDate(o['encerramento_utc']) }}</div>
             @if (o['derived_state'] === 'Recebendo propostas') { <div class="rel">{{ fmtRelative(o['encerramento_utc']) }}</div> }
             <p class="muted small">{{ origin(o) }}</p>
@@ -205,9 +205,9 @@ const GROUP_TEXT: Record<string, string> = {
     }
   `,
   styles: `
-    .back { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; font-weight: 560; margin-bottom: 12px; }
+    .back { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 12px; }
     .back:hover { color: var(--text); text-decoration: none; }
-    .hero { padding: 20px 22px; display: grid; gap: 10px; margin-bottom: 16px; background: linear-gradient(135deg, var(--surface) 60%, var(--primary-soft)); }
+    .hero { padding: 20px 22px; display: grid; gap: 10px; margin-bottom: 16px;  }
     .hero h1 { font-size: 22px; }
     .tags { gap: 6px; }
     .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; }
@@ -219,25 +219,25 @@ const GROUP_TEXT: Record<string, string> = {
     .objeto { font-size: 14.5px; line-height: 1.6; margin: 10px 0 6px; }
     .evidences { display: grid; gap: 8px; }
     .ev { border: 1px solid var(--border); border-left: 3px solid var(--neutral); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); display: grid; gap: 6px; }
-    .ev.g-central { border-left-color: var(--ok); } .ev.g-funcao { border-left-color: var(--primary); } .ev.g-tecnologia, .ev.g-adjacente { border-left-color: var(--info); } .ev.g-negativo { border-left-color: var(--bad); }
+    .ev.g-central { border-left-color: var(--ok); } .ev.g-funcao { border-left-color: var(--accent); } .ev.g-tecnologia, .ev.g-adjacente { border-left-color: var(--info); } .ev.g-negativo { border-left-color: var(--bad); }
     .ev-head { gap: 8px; }
     q { quotes: none; color: var(--text-2); font-size: 13px; line-height: 1.5; } q::before { content: '“'; } q::after { content: '”'; }
     .excerpt { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); margin-bottom: 8px; }
     .docs { display: grid; gap: 8px; }
     .doc { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
-    .doc-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
+    .doc-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none; }
     .doc-title { font-weight: 600; font-size: 13px; }
     .timeline { list-style: none; margin: 0; padding: 0 0 0 4px; display: grid; gap: 14px; position: relative; }
     .timeline::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
     .timeline li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; position: relative; font-size: 13px; }
-    .t-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin: 4px 0 0; box-shadow: 0 0 0 3px var(--surface); position: relative; left: 4px; }
+    .t-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin: 4px 0 0; box-shadow: 0 0 0 3px var(--surface); position: relative; left: 4px; }
     .deadline-card { padding: 18px 20px; }
-    .deadline-card .big { font-family: var(--font-display); font-size: 24px; font-weight: 680; margin-top: 6px; }
-    .deadline-card .rel { font-weight: 650; margin-top: 2px; }
+    .deadline-card .big { font-family: var(--font-display); font-size: 24px; font-weight: 600; margin-top: 6px; }
+    .deadline-card .rel { font-weight: 600; margin-top: 2px; }
     .t-bad .rel { color: var(--bad); } .t-warn .rel { color: var(--warn); } .t-ok .rel { color: var(--ok); }
     .deadline-card.t-bad { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
     .small2 { grid-template-columns: 110px 1fr; font-size: 12.5px; }
-    .strong { font-weight: 650; }
+    .strong { font-weight: 600; }
     .segmented.full { display: flex; } .segmented.full button { flex: 1; padding: 0 6px; }
     .star.on { color: #f5b301; } .star.on ::ng-deep svg { fill: #f5b301; }
     .check-head { display: flex; justify-content: space-between; margin: 14px 0 6px; }
@@ -246,7 +246,7 @@ const GROUP_TEXT: Record<string, string> = {
     .checks { display: grid; gap: 2px; margin-top: 8px; }
     .check { display: flex; gap: 9px; align-items: center; font-size: 13px; padding: 5px 4px; border-radius: 7px; cursor: pointer; }
     .check:hover { background: var(--surface-2); }
-    .check input { width: 16px; height: 16px; accent-color: var(--primary); margin: 0; }
+    .check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
   `,
 })
 export class DetailPage implements OnInit, OnDestroy {

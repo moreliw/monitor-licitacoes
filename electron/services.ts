@@ -54,6 +54,8 @@ export function createServices(dataDir: string, emit?: (p: SyncProgress) => void
   const docs = new DocPipeline(store, connector, path.join(dataDir, 'anexos'));
   engine = new SyncEngine({ store, connector, docs, emit });
   engine.recoverStale();
+  // execuções interrompidas pelo fechamento do app não ficam presas como "executando"
+  db.run("UPDATE sync_runs SET status='interrompido', finished_at=COALESCE(finished_at, started_at) WHERE status='executando'");
   if (recovered) engine.log('error', `Banco corrompido: arquivo preservado em ${path.basename(recovered)} e novo banco criado.`);
   upgradeClassification(store, engine);
   return { db, settings, store, http, connector, engine, docs, recovered };

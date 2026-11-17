@@ -1,0 +1,95 @@
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+<div class="shell">
+  <aside class="side" aria-label="Navegação principal">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18" /><path d="M5 21V10" /><path d="M9.5 21V10" /><path d="M14.5 21V10" /><path d="M19 21V10" /><path d="M2 10l10-6 10 6Z" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <strong>Monitor Legislativo</strong>
+        <span>Licitações · Moreli.Dev</span>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-label">Painel</div>
+      @for (n of nav(); track n.path) {
+        <a class="nav-item" [routerLink]="n.path" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <app-icon [name]="n.icon" [size]="17" />
+          <span class="grow">{{ n.label }}</span>
+          @if (n.count) { <span class="count" [class.alert]="n.alert" [attr.aria-label]="n.count + ' ' + n.hint">{{ n.count }}</span> }
+        </a>
+      }
+      <div class="nav-label">Sistema</div>
+      @for (n of system; track n.path) {
+        <a class="nav-item" [routerLink]="n.path" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <app-icon [name]="n.icon" [size]="17" /><span class="grow">{{ n.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="side-foot">
+      @if (showUpdate()) {
+        <div class="update-card fade-in" role="status">
+          <div class="row" style="gap:8px">
+            <span class="u-icon"><app-icon name="sparkles" [size]="15" /></span>
+            <div class="grow">
+              <strong>Versão {{ upd()?.['version'] }}</strong>
+              <div class="small">
+                @switch (upd()?.['status']) {
+                  @case ('baixando') { Baixando… {{ upd()?.['percent'] ?? 0 }}% }
+                  @case ('pronto') { Pronta para instalar }
+                  @case ('instalando') { Instalando e reiniciando… }
+                }
+              </div>
+            </div>
+          </div>
+          @if (upd()?.['status'] === 'baixando') {
+            <div class="bar"><span [style.width.%]="upd()?.['percent'] ?? 0"></span></div>
+          }
+          <button class="primary" (click)="installUpdate()" [disabled]="upd()?.['status'] === 'instalando'">
+            <app-icon name="upload" [size]="15" /> Atualizar agora
+          </button>
+        </div>
+      }
+
+      <div class="sync-card" role="status" aria-live="polite">
+        <div class="row" style="gap:8px">
+          <span class="pulse" [class.on]="running()" [class.stale]="!running() && stale()" aria-hidden="true"></span>
+          <div class="grow">
+            @if (running()) {
+              <strong>Sincronizando</strong>
+              <div class="small ellipsis">{{ api.progress()?.['jobsPending'] }} janelas na fila</div>
+            } @else {
+              <strong>{{ stale() ? 'Base desatualizada' : 'Base em dia' }}</strong>
+              <div class="small">{{ lastFull() ? 'Coleta completa ' + fmtRelative(lastFull()) : 'Primeira coleta em andamento' }}</div>
+            }
+          </div>
+          <button class="icon sm ghost" (click)="sync()" [disabled]="running() || !api.available" title="Sincronizar agora" aria-label="Sincronizar agora">
+            <app-icon name="refresh" [size]="15" [class.spin]="running()" />
+          </button>
+        </div>
+        @if (running()) {
+          <div class="bar" [class.indeterminate]="progressPct() === null"><span [style.width.%]="progressPct() ?? 40"></span></div>
+        }
+      </div>
+
+      <button class="ghost theme" (click)="cycleTheme()" [attr.aria-label]="themeLabel() + ' (clique para alternar)'" [title]="themeLabel()">
+        <app-icon [name]="themeIcon()" [size]="15" /> {{ themeLabel() }}
+        <span class="right small muted">v{{ upd()?.['currentVersion'] }}</span>
+      </button>
+    </div>
+  </aside>
+
+  <main id="conteudo" tabindex="-1">
+    @if (!api.available) {
+      <div class="banner bad top"><app-icon name="alert" /> A interface não encontrou o processo principal. Abra pelo aplicativo instalado.</div>
+    }
+    @if (!api.online()) {
+      <div class="banner warn top"><app-icon name="info" /> Sem internet: exibindo o acervo local (a busca funciona offline).</div>
+    }
+    <div class="page"><router-outlet /></div>
+  </main>
+</div>

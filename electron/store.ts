@@ -408,6 +408,21 @@ export class Store {
     return true;
   }
 
+  /** Regras de mercado mudaram: reclassifica pelo objeto guardado e remove o que deixou de ser software. */
+  reclassifyMarket(): { updated: number; removed: number } {
+    const rows = this.db.all<Row>('SELECT control_id, objeto FROM market_items WHERE rules_version != ?', MARKET_VERSION);
+    let updated = 0, removed = 0;
+    this.db.tx(() => {
+      for (const r of rows) {
+        const m = classifyMarket(r.objeto);
+        if (!m.software) { this.db.run('DELETE FROM market_items WHERE control_id=?', r.control_id); removed++; continue; }
+        this.db.run('UPDATE market_items SET primary_category=?, categories=?, rules_version=? WHERE control_id=?', m.primary, JSON.stringify(m.categories), MARKET_VERSION, r.control_id);
+        updated++;
+      }
+    });
+    return { updated, removed };
+  }
+
   /** Recalcula o estado (aberta/encerrada) do mercado conforme o relógio. */
   refreshMarketStates(): void {
     const rows = this.db.all<Row>("SELECT control_id, situacao_id, modalidade_id, encerramento_utc FROM market_items WHERE derived_state IN ('Abertura futura','Recebendo propostas')");

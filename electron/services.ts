@@ -74,6 +74,8 @@ export function upgradeClassification(store: Store, engine: SyncEngine): void {
     reclassified = ids.length;
   }
   const purgedAfter = store.purgeOutOfProfile();
+  const mk = store.reclassifyMarket();
+  if (mk.updated + mk.removed > 0) engine.log('info', `Mercado: ${mk.updated} contratações recategorizadas, ${mk.removed} removidas (não eram software).`);
   if (purgedBefore + purgedAfter > 500) {
     try { store.db.exec('VACUUM'); } catch { /* compacta na próxima oportunidade */ }
   }

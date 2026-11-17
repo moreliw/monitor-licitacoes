@@ -76,7 +76,8 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Monitor de Licitações"
+      "shortcutName": "Monitor de Licitações",
+      "artifactName": "monitor-licitacoes-setup-${version}.${ext}"
     },
     "publish": [
       {

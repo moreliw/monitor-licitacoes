@@ -29,6 +29,33 @@ test('mercado: reconhece software e separa por categoria de produto', () => {
   }
 });
 
+test('mercado: casos reais refinados (desenvolvimento, design, CDN/WAF, compras públicas)', () => {
+  const cases: [string, string][] = [
+    ['Contratação de serviços de tecnologia da informação para o desenvolvimento, manutenção, sustentação e testes de software', 'desenvolvimento'],
+    ['Contratação de assinatura e licença de uso de software Canva Pro', 'prateleira'],
+    ['Licenças de softwares para design visual', 'prateleira'],
+    ['Software de serviço de CDN, WAF e mitigação de ataques de negação de serviço', 'seguranca-ti'],
+    ['Plataforma eletrônica de contratação pública em ambiente web, modelo Software as a Service', 'compras'],
+    ['Contratação de solução em modelo SaaS para gestão administrativa integrada', 'erp'],
+  ];
+  for (const [o, e] of cases) assert.equal(cat(o).primary, e, o);
+  for (const o of [
+    'Cessão de uso para a instalação de uma alfaiataria (artigos militares)',
+    'Aquisição de Sistemas de Microgeração de Energia Elétrica a partir da fonte solar',
+    'Locação de sistema de sonorização de pequeno porte',
+  ]) assert.equal(cat(o).software, false, o);
+});
+
+test('mercado: mudança de regras recategoriza o acervo guardado', () => {
+  const env = makeStore();
+  env.store.recordMarket(normalizeProcurement(rec({ sequencialCompra: 1, objeto: 'Software de gestão de saúde' }), 'x'));
+  env.store.recordMarket(normalizeProcurement(rec({ sequencialCompra: 2, objeto: 'Software de gestão de saúde' }), 'x'));
+  env.db.run("UPDATE market_items SET rules_version='antiga', primary_category='outros' WHERE control_id LIKE '%000001/2026'");
+  env.db.run("UPDATE market_items SET rules_version='antiga', objeto='Cessão de uso para alfaiataria' WHERE control_id LIKE '%000002/2026'");
+  assert.deepEqual(env.store.reclassifyMarket(), { updated: 1, removed: 1 });
+  assert.equal(env.db.get<any>('SELECT primary_category c FROM market_items').c, 'saude');
+});
+
 test('mercado: "sistema" que não é software fica fora', () => {
   for (const objeto of [
     'Aquisição de sistema de som para o auditório',

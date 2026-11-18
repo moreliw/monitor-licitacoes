@@ -23,9 +23,27 @@ const startMenuLink = () => path.join(app.getPath('appData'), 'Microsoft', 'Wind
 const desktopLink = () => path.join(app.getPath('desktop'), `${SHORTCUT_NAME}.lnk`);
 const choiceFile = () => path.join(app.getPath('userData'), 'instalacao.json');
 
+/** Ícone num local fixo, copiado da versão em uso: atalhos e registro apontam para ele e acompanham as atualizações. */
+const stableIcon = () => path.join(process.env['LOCALAPPDATA'] || app.getPath('appData'), 'monitor-licitacoes', 'icone.ico');
+
 function iconFor(dir: string): string {
+  if (fs.existsSync(stableIcon())) return stableIcon();
   const ico = path.join(dir, 'resources', 'app', 'icon.ico');
   return fs.existsSync(ico) ? ico : path.join(dir, EXE_NAME);
+}
+
+/** Copia o ícone da versão carregada para o local fixo. Retorna true se o ícone mudou. */
+function syncStableIcon(): boolean {
+  const appDir = process.env['MONITOR_APP_DIR'];
+  const candidates = [appDir && path.join(appDir, 'build', 'icon.ico'), path.join(exeDir(), 'resources', 'app', 'icon.ico')].filter(Boolean) as string[];
+  const src = candidates.find((p) => fs.existsSync(p));
+  if (!src) return false;
+  const dest = stableIcon();
+  const next = fs.readFileSync(src);
+  if (fs.existsSync(dest) && fs.readFileSync(dest).equals(next)) return false;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, next);
+  return true;
 }
 
 function shortcut(link: string, dir: string): void {
@@ -101,6 +119,7 @@ export async function offerInstall(): Promise<boolean> {
     const dest = installDir();
     fs.rmSync(dest, { recursive: true, force: true });
     fs.cpSync(exeDir(), dest, { recursive: true, force: true });
+    syncStableIcon();
     shortcut(startMenuLink(), dest);
     if (r.checkboxChecked) shortcut(desktopLink(), dest);
     registerUninstall(dest);
@@ -113,12 +132,16 @@ export async function offerInstall(): Promise<boolean> {
   }
 }
 
-/** Mantém atalho do Menu Iniciar e o registro em dia (versão exibida, ícone). */
+/** Mantém atalhos e registro em dia (versão exibida, ícone novo após atualização). */
 export function refreshInstallation(): void {
   if (!isPortableRun() || !isInstalled()) return;
   try {
-    if (!fs.existsSync(startMenuLink())) shortcut(startMenuLink(), installDir());
+    const iconChanged = syncStableIcon();
+    if (iconChanged || !fs.existsSync(startMenuLink())) shortcut(startMenuLink(), installDir());
+    if (iconChanged && fs.existsSync(desktopLink())) shortcut(desktopLink(), installDir());
     registerUninstall();
+    // pede ao Windows para atualizar o cache de ícones (ferramenta do sistema, assinada pela Microsoft)
+    if (iconChanged) spawn(sys32('ie4uinit.exe'), ['-show'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
   } catch { /* não impede o uso */ }
 }
 
@@ -135,7 +158,7 @@ export async function runUninstall(): Promise<void> {
   try { app.setLoginItemSettings({ openAtLogin: false }); } catch { /* ignora */ }
   for (const l of [startMenuLink(), desktopLink()]) fs.rmSync(l, { force: true });
   try { reg(['delete', UNINSTALL_KEY, '/f']); } catch { /* já removida */ }
-  fs.rmSync(versionsDir(), { recursive: true, force: true });
+  fs.rmSync(path.dirname(versionsDir()), { recursive: true, force: true }); // versões baixadas e ícone
   // a pasta do programa (e os dados, se pedido) só podem ser apagados depois que este processo terminar
   const targets = [exeDir()];
   if (r.checkboxChecked) targets.push(app.getPath('userData'));

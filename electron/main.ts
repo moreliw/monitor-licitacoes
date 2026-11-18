@@ -15,7 +15,9 @@ import { isInstalled, isPortableRun, offerInstall, refreshInstallation, runUnins
 
 const APP_ORIGIN = 'app://local/';
 const UI_DIR = path.join(__dirname, '..', 'dist', 'monitor-licitacoes', 'browser');
-const ICON = path.join(__dirname, '..', 'build', 'icon.png');
+// .ico com vários tamanhos: o Windows escolhe a resolução certa (barra de tarefas, bandeja, Alt+Tab)
+const ICON_ICO = path.join(__dirname, '..', 'build', 'icon.ico');
+const ICON = fs.existsSync(ICON_ICO) ? ICON_ICO : path.join(__dirname, '..', 'build', 'icon.png');
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'";
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -130,7 +132,7 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  const img = fs.existsSync(ICON) ? nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }) : nativeImage.createEmpty();
+  const img = fs.existsSync(ICON) ? nativeImage.createFromPath(ICON) : nativeImage.createEmpty();
   tray = new Tray(img);
   tray.setToolTip('Monitor de Licitações Legislativas');
   const menu = Menu.buildFromTemplate([

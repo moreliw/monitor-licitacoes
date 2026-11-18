@@ -1,77 +1,137 @@
-// Gera build/icon.png (512x512): prédio legislativo estilizado, sem dependências externas.
-import { deflateSync } from 'node:zlib';
+// Ícone do Monitor de Licitações: pórtico legislativo com lupa dourada sobre fundo índigo.
+// Desenhado em vetor (canvas Skia) em cada tamanho; nos tamanhos pequenos usa uma versão simplificada.
+// Gera: build/icon.png (512), build/icon.ico (16–256), public/logo.png (256, usado na interface).
+import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const N = 512;
-const px = Buffer.alloc(N * N * 4);
-const set = (x, y, r, g, b, a = 255) => { const i = (y * N + x) * 4; px[i] = r; px[i + 1] = g; px[i + 2] = b; px[i + 3] = a; };
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const inRound = (x, y, r) => {
-  const cx = Math.min(Math.max(x, r), N - 1 - r), cy = Math.min(Math.max(y, r), N - 1 - r);
-  return (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
-};
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
-for (let y = 0; y < N; y++) {
-  for (let x = 0; x < N; x++) {
-    if (!inRound(x, y, 96)) { set(x, y, 0, 0, 0, 0); continue; }
-    const t = y / N;
-    let c = [Math.round(20 + 10 * t), Math.round(80 + 30 * t), Math.round(122 + 40 * t)];
-    const white = [255, 255, 255];
-    // frontão (triângulo)
-    const apexY = 110, baseY = 200, half = 190;
-    const inTri = y >= apexY && y <= baseY && Math.abs(x - N / 2) <= ((y - apexY) / (baseY - apexY)) * half;
-    // arquitrave
-    const arch = y >= 208 && y <= 232 && x >= 66 && x <= 446;
-    // colunas
-    const colXs = [100, 192, 284, 376];
-    const col = y >= 240 && y <= 380 && colXs.some((cx) => x >= cx && x <= cx + 36);
-    // degraus
-    const base1 = y >= 388 && y <= 412 && x >= 66 && x <= 446;
-    const base2 = y >= 420 && y <= 444 && x >= 46 && x <= 466;
-    // círculo no frontão (vazado)
-    const hole = (x - N / 2) ** 2 + (y - 168) ** 2 <= 16 * 16;
-    if ((inTri && !hole) || arch || col || base1 || base2) c = white;
-    set(x, y, ...c);
+/** Desenha no espaço 512×512 (escalado para `size`). */
+function draw(size) {
+  const c = createCanvas(size, size);
+  const ctx = c.getContext('2d');
+  const s = size / 512;
+  ctx.scale(s, s);
+  const small = size <= 24;   // 16–24 px: menos detalhes e traços mais grossos
+  const medium = size <= 48;
+
+  // fundo: quadrado arredondado índigo com leve luz no topo
+  const pad = small ? 8 : 24;
+  const r = small ? 96 : 112;
+  roundRect(ctx, pad, pad, 512 - pad * 2, 512 - pad * 2, r);
+  const bg = ctx.createLinearGradient(0, pad, 0, 512 - pad);
+  bg.addColorStop(0, '#3a5bf0');
+  bg.addColorStop(1, '#1c2a86');
+  ctx.fillStyle = bg;
+  ctx.fill();
+  if (!small) {
+    ctx.save();
+    ctx.clip();
+    const gloss = ctx.createLinearGradient(0, pad, 0, 300);
+    gloss.addColorStop(0, 'rgba(255,255,255,0.16)');
+    gloss.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gloss;
+    ctx.fillRect(0, 0, 512, 300);
+    ctx.restore();
+    roundRect(ctx, pad + 2, pad + 2, 512 - pad * 2 - 4, 512 - pad * 2 - 4, r - 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
   }
+
+  // pórtico (frontão, arquitrave, colunas, degraus)
+  const white = '#ffffff';
+  ctx.fillStyle = white;
+  ctx.strokeStyle = white;
+  ctx.lineJoin = 'round';
+  const ox = small ? 0 : -12; // abre espaço para a lupa
+  const oy = small ? 6 : -6;
+  ctx.save();
+  ctx.translate(ox, oy);
+  // frontão
+  ctx.beginPath();
+  ctx.moveTo(256, small ? 104 : 112);
+  ctx.lineTo(small ? 420 : 404, 196);
+  ctx.lineTo(small ? 92 : 108, 196);
+  ctx.closePath();
+  ctx.lineWidth = small ? 22 : 18;
+  ctx.fill();
+  ctx.stroke();
+  // arquitrave
+  roundRect(ctx, small ? 92 : 112, 212, small ? 328 : 288, small ? 34 : 26, 8); ctx.fill();
+  // colunas
+  const cols = small ? [150, 256, 362] : medium ? [158, 256, 354] : [148, 220, 292, 364];
+  const cw = small ? 52 : medium ? 42 : 36;
+  for (const cx of cols) { roundRect(ctx, cx - cw / 2, small ? 262 : 252, cw, small ? 104 : 112, 8); ctx.fill(); }
+  // degraus
+  roundRect(ctx, small ? 80 : 100, small ? 380 : 378, small ? 352 : 312, small ? 40 : 26, 8); ctx.fill();
+  if (!small) { roundRect(ctx, 84, 414, 344, 24, 8); ctx.fill(); }
+  ctx.restore();
+
+  // lupa dourada (monitorar), com recorte do fundo para separar do prédio
+  if (!small) {
+    const lx = 350, ly = 338, lr = medium ? 66 : 60;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(lx, ly, lr + (medium ? 26 : 22), 0, Math.PI * 2);
+    ctx.fillStyle = '#22339a'; ctx.fill();
+    ctx.restore();
+    const gold = ctx.createLinearGradient(lx - lr, ly - lr, lx + lr, ly + lr);
+    gold.addColorStop(0, '#ffd56a');
+    gold.addColorStop(1, '#f2a516');
+    // cabo
+    ctx.strokeStyle = gold;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = medium ? 40 : 34;
+    ctx.beginPath();
+    ctx.moveTo(lx + lr * 0.72, ly + lr * 0.72);
+    ctx.lineTo(lx + lr * 1.36, ly + lr * 1.36);
+    ctx.stroke();
+    // lente
+    ctx.beginPath(); ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fill();
+    ctx.lineWidth = medium ? 30 : 26;
+    ctx.stroke();
+    if (!medium) {
+      // reflexo
+      ctx.beginPath(); ctx.arc(lx, ly, lr - 26, Math.PI * 1.1, Math.PI * 1.45);
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 10; ctx.stroke();
+    }
+  }
+  return c.toBuffer('image/png');
 }
 
-// PNG
-const raw = Buffer.alloc((N * 4 + 1) * N);
-for (let y = 0; y < N; y++) { raw[y * (N * 4 + 1)] = 0; px.copy(raw, y * (N * 4 + 1) + 1, y * N * 4, (y + 1) * N * 4); }
-const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
-const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcTable[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-const chunk = (type, data) => {
-  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
-  const td = Buffer.concat([Buffer.from(type), data]);
-  const c = Buffer.alloc(4); c.writeUInt32BE(crc(td));
-  return Buffer.concat([len, td, c]);
-};
-const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(N, 0); ihdr.writeUInt32BE(N, 4); ihdr[8] = 8; ihdr[9] = 6;
-const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'icon.png');
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, png);
-console.log('icone gerado:', out, png.length, 'bytes');
-
-// build/icon.ico (256x256, PNG embutido): reduz 512 -> 256 por média 2x2 e embala no formato ICO.
-const H = N / 2;
-const small = Buffer.alloc(H * H * 4);
-for (let y = 0; y < H; y++) for (let x = 0; x < H; x++) for (let c = 0; c < 4; c++) {
-  let s = 0;
-  for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) s += px[((y * 2 + dy) * N + (x * 2 + dx)) * 4 + c];
-  small[(y * H + x) * 4 + c] = Math.round(s / 4);
+/** ICO com várias resoluções (entradas PNG, aceitas pelo Windows desde o Vista). */
+function ico(images) {
+  const head = Buffer.alloc(6 + images.length * 16);
+  head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(images.length, 4);
+  let offset = head.length;
+  images.forEach(({ size, png }, i) => {
+    const e = 6 + i * 16;
+    head[e] = size >= 256 ? 0 : size; head[e + 1] = size >= 256 ? 0 : size;
+    head[e + 2] = 0; head[e + 3] = 0;
+    head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6);
+    head.writeUInt32LE(png.length, e + 8); head.writeUInt32LE(offset, e + 12);
+    offset += png.length;
+  });
+  return Buffer.concat([head, ...images.map((i) => i.png)]);
 }
-const raw2 = Buffer.alloc((H * 4 + 1) * H);
-for (let y = 0; y < H; y++) { raw2[y * (H * 4 + 1)] = 0; small.copy(raw2, y * (H * 4 + 1) + 1, y * H * 4, (y + 1) * H * 4); }
-const ihdr2 = Buffer.alloc(13); ihdr2.writeUInt32BE(H, 0); ihdr2.writeUInt32BE(H, 4); ihdr2[8] = 8; ihdr2[9] = 6;
-const png256 = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr2), chunk('IDAT', deflateSync(raw2)), chunk('IEND', Buffer.alloc(0))]);
-const icoHead = Buffer.alloc(22);
-icoHead.writeUInt16LE(0, 0); icoHead.writeUInt16LE(1, 2); icoHead.writeUInt16LE(1, 4); // ICO com 1 imagem
-icoHead[6] = 0; icoHead[7] = 0; icoHead[8] = 0; icoHead[9] = 0; // 256x256 (0 = 256), sem paleta
-icoHead.writeUInt16LE(1, 10); icoHead.writeUInt16LE(32, 12);
-icoHead.writeUInt32LE(png256.length, 14); icoHead.writeUInt32LE(22, 18);
-const icoOut = join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'icon.ico');
-writeFileSync(icoOut, Buffer.concat([icoHead, png256]));
-console.log('icone .ico gerado:', icoOut);
+
+mkdirSync(join(root, 'build'), { recursive: true });
+mkdirSync(join(root, 'public'), { recursive: true });
+writeFileSync(join(root, 'build', 'icon.png'), draw(512));
+const sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256];
+writeFileSync(join(root, 'build', 'icon.ico'), ico(sizes.map((size) => ({ size, png: draw(size) }))));
+writeFileSync(join(root, 'public', 'logo.png'), draw(256));
+console.log('ícones gerados: build/icon.png, build/icon.ico, public/logo.png');

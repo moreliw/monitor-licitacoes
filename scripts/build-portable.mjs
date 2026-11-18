@@ -36,6 +36,7 @@ cp('dist-electron', path.join(bundle, 'dist-electron'), (src) => !src.includes(`
 cp('dist/monitor-licitacoes/browser', path.join(bundle, 'dist', 'monitor-licitacoes', 'browser'));
 fs.mkdirSync(path.join(bundle, 'build'));
 fs.copyFileSync('build/icon.png', path.join(bundle, 'build', 'icon.png'));
+fs.copyFileSync('build/icon.ico', path.join(bundle, 'build', 'icon.ico'));
 // pdf.js: só a build "legacy" usada em Node, mais fontes e cmaps
 const pdfKeep = ['package.json', 'LICENSE', 'legacy', 'cmaps', 'standard_fonts', 'wasm'];
 cp('node_modules/pdfjs-dist', path.join(bundle, 'node_modules', 'pdfjs-dist'), (src) => {

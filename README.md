@@ -7,6 +7,82 @@ Aplicativo desktop (Windows x64) da Moreli.Dev que descobre e acompanha, em todo
 Funciona sem servidor, conta externa ou chave de IA. Continua operando em segundo plano na bandeja enquanto o
 PC estiver ligado e permite pesquisar o acervo local offline.
 
+## Baixar e instalar
+
+É gratuito, não pede conta nem senha e não precisa de administrador.
+
+**Requisitos:** Windows 10 ou 11 de 64 bits, internet e cerca de 1 GB livre durante a instalação (o app instalado
+ocupa uns 500 MB; o `.zip` e a pasta extraída podem ser apagados depois).
+
+### 1. Baixar
+
+1. Abra a página da versão mais recente:
+   **https://github.com/moreliw/monitor-licitacoes/releases/latest**
+2. Em **Assets**, clique em **`MonitorLegislativo-<versão>-win-x64.zip`** (cerca de 170 MB).
+   Os outros arquivos da lista (`app-….tar.gz`, `app-latest.json`, código-fonte) são usados pela atualização
+   automática e não precisam ser baixados.
+
+### 2. Extrair
+
+1. Na pasta Downloads, clique com o botão direito no `.zip` e escolha **Extrair tudo…** e depois **Extrair**.
+2. Abra a pasta extraída **Monitor Legislativo**.
+
+> Extraia antes de abrir. Executar o programa de dentro do `.zip`, sem extrair, não funciona.
+
+### 3. Instalar
+
+1. Dê dois cliques em **`Monitor Legislativo.exe`**.
+2. Na janela "Instalar o Monitor de Licitações neste computador?":
+   * deixe marcado **Criar atalho na área de trabalho**, se quiser o ícone na área de trabalho;
+   * clique em **Instalar**.
+3. O app se copia para a pasta de programas do usuário, cria o atalho **Monitor de Licitações** no Menu Iniciar e
+   abre sozinho. Depois disso, o `.zip` e a pasta extraída podem ser apagados.
+
+Prefere não instalar? Clique em **Usar sem instalar**: o app roda direto da pasta extraída, sem criar atalhos.
+
+#### Se o Windows mostrar um aviso
+
+O executável é o do Electron oficial, conhecido pelo Windows, então normalmente abre sem aviso. Se aparecer:
+
+* **"O Windows protegeu o computador"** (tela azul do SmartScreen): clique em **Mais informações** e depois em
+  **Executar assim mesmo**.
+* **"Deseja executar este arquivo?"**: clique em **Executar**.
+
+### 4. Primeiro uso
+
+* Na primeira abertura, o app começa a buscar as contratações no PNCP. A carga inicial leva alguns minutos e
+  continua em segundo plano. O andamento aparece no canto inferior esquerdo ("Sincronizando").
+* O **X** da janela não fecha o app: ele continua na **bandeja** (perto do relógio), coletando e avisando sobre
+  novidades. Para fechar de verdade: botão direito no ícone da bandeja e **Encerrar**.
+* Os dados ficam só no computador (`%APPDATA%\monitor-licitacoes`). Nada é enviado para servidor nenhum.
+
+### Atualizações
+
+O app verifica novas versões sozinho. Quando houver uma, aparece **Atualizar agora** na barra lateral: um clique
+baixa, instala e reabre o app, sem perder dados. Também dá para verificar em **Configurações → Atualizações →
+Verificar agora**.
+
+### Desinstalar
+
+**Configurações do Windows → Aplicativos → Aplicativos instalados → Monitor de Licitações → Desinstalar.**
+Na confirmação, marque "Apagar também meus dados" se quiser remover também as oportunidades e editais baixados.
+
+### O que testar
+
+* **Oportunidades:** a lista enche à medida que a coleta avança. Teste a busca, os filtros e a abertura de um item.
+* **Detalhe:** **Abrir no PNCP**, **Visualizar** e **Baixar** os editais em PDF.
+* **Acompanhadas** e **Alertas:** no detalhe, preencha **Acompanhamento** e clique em **Salvar acompanhamento**;
+  a oportunidade passa a receber lembretes 72 h, 24 h e 3 h antes do prazo.
+* **Mercado de software:** o panorama de tudo o que está sendo comprado em software, por categoria e UF.
+* **Bandeja:** feche a janela no X e reabra pelo ícone perto do relógio.
+
+Problemas ou sugestões: abra uma issue em https://github.com/moreliw/monitor-licitacoes/issues ou envie um print
+da tela com a versão, que aparece no canto inferior esquerdo do app (ex.: `v1.3.3`).
+
+---
+
+## Para desenvolvedores
+
 ### Escopo do nicho (versão 1.1)
 
 O PNCP não filtra por texto, então a coleta **lê todas** as contratações das modalidades habilitadas, mas **guarda e mostra

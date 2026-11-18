@@ -109,28 +109,36 @@ const GROUP_TEXT: Record<string, string> = {
 
           <section class="card" aria-labelledby="h-doc">
             <div class="card-head">
-              <h2 id="h-doc" class="grow">Documentos oficiais <span class="muted">({{ o['documents'].length }})</span></h2>
-              <form class="search" style="width:280px" (ngSubmit)="searchDocs()" role="search">
-                <app-icon name="search" [size]="15" />
-                <label class="sr-only" for="dq">Buscar nos documentos</label>
-                <input id="dq" type="search" name="dq" [(ngModel)]="docQuery" placeholder="Buscar no texto do edital" style="height:34px" />
-              </form>
+              <div class="grow">
+                <h2 id="h-doc">Edital e documentos <span class="muted">({{ o['documents'].length }})</span></h2>
+                <p>Visualize o PDF aqui mesmo ou baixe para montar sua documentação.</p>
+              </div>
+              <button class="sm" (click)="refreshDocs()" [disabled]="busy() === 'lista'"><app-icon name="refresh" [size]="13" [class.spin]="busy() === 'lista'" /> Atualizar lista</button>
+              <button class="sm primary" (click)="saveAll()" [disabled]="!o['documents'].length || busy() === 'todos'"><app-icon name="download" [size]="13" /> {{ busy() === 'todos' ? 'Baixando…' : 'Baixar todos' }}</button>
             </div>
             <div class="card-body">
+              <form class="search" style="margin-bottom:12px" (ngSubmit)="searchDocs()" role="search">
+                <app-icon name="search" [size]="15" />
+                <label class="sr-only" for="dq">Buscar nos documentos</label>
+                <input id="dq" type="search" name="dq" [(ngModel)]="docQuery" placeholder="Buscar trecho no texto dos editais já lidos" />
+              </form>
               @for (x of excerpts(); track $index) { <p class="excerpt"><strong>{{ x['titulo'] }} · p. {{ x['page'] }}</strong> <q>{{ x['snippet'] }}</q></p> }
-              @if (o['documents'].length === 0) { <p class="muted">Documentos ainda não listados.</p> }
+              @if (o['documents'].length === 0) {
+                <p class="muted">Nenhum documento listado ainda. Clique em “Atualizar lista” para consultar o PNCP.</p>
+              }
               <div class="docs">
                 @for (x of o['documents']; track x['id']) {
                   <div class="doc">
-                    <span class="doc-icon"><app-icon name="file" [size]="18" /></span>
+                    <span class="doc-icon"><app-icon name="file" [size]="16" [stroke]="1.75" /></span>
                     <div class="grow">
                       <div class="doc-title">{{ x['titulo'] }}</div>
-                      <div class="muted small">{{ x['tipo_nome'] }} · publicado {{ fmtDay(x['data_publicacao']) }}{{ x['sha256'] ? ' · v' + x['version'] : '' }}
-                        @if (x['text_status'] === 'imagem' || x['text_status'] === 'parcial') { · texto {{ x['text_status'] === 'imagem' ? 'indisponível (escaneado)' : 'incompleto' }} }
+                      <div class="muted small">{{ x['tipo_nome'] }} · publicado {{ fmtDay(x['data_publicacao']) }}{{ x['bytes'] ? ' · ' + fmtSize(x['bytes']) : '' }}
+                        @if (x['text_status'] === 'imagem') { · escaneado (sem texto pesquisável) }
                         @if (x['error']) { · {{ x['error'] }} }</div>
                     </div>
-                    <span class="badge" [class]="'badge ' + docClass(x)">{{ docText(x) }}</span>
-                    <button class="sm" (click)="openDoc(x['id'])"><app-icon name="external" [size]="13" /> Abrir</button>
+                    <button class="sm" (click)="viewDoc(x['id'])" [disabled]="busy() === 'v' + x['id']">{{ busy() === 'v' + x['id'] ? 'Abrindo…' : 'Visualizar' }}</button>
+                    <button class="sm" (click)="saveDoc(x['id'])" [disabled]="busy() === 's' + x['id']"><app-icon name="download" [size]="13" /> Baixar</button>
+                    <button class="icon sm ghost" (click)="openDoc(x['id'])" title="Abrir no PNCP" aria-label="Abrir no PNCP"><app-icon name="external" [size]="14" /></button>
                   </div>
                 }
               </div>
@@ -225,7 +233,8 @@ const GROUP_TEXT: Record<string, string> = {
     .excerpt { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); margin-bottom: 8px; }
     .docs { display: grid; gap: 8px; }
     .doc { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
-    .doc-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none; }
+    .doc-icon { width: 32px; height: 32px; border-radius: 7px; display: grid; place-items: center; border: 1px solid var(--border); color: var(--muted); flex: none; }
+    :host ::ng-deep .spin svg { animation: rot 1s linear infinite; } @keyframes rot { to { transform: rotate(360deg); } }
     .doc-title { font-weight: 600; font-size: 13px; }
     .timeline { list-style: none; margin: 0; padding: 0 0 0 4px; display: grid; gap: 14px; position: relative; }
     .timeline::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
@@ -271,6 +280,30 @@ export class DetailPage implements OnInit, OnDestroy {
   ngOnInit(): void { this.sub = this.route.paramMap.subscribe((p) => { this.id = Number(p.get('id')); void this.load(); }); }
   ngOnDestroy(): void { this.sub?.unsubscribe(); }
 
+  protected readonly busy = signal<string | null>(null);
+  protected fmtSize(b: number): string { return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+  private async run(key: string, fn: () => Promise<void>): Promise<void> {
+    this.busy.set(key);
+    try { await fn(); } catch (e) { this.msg.set('Não foi possível: ' + ((e as Error).message ?? '').replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
+    this.busy.set(null);
+  }
+  protected viewDoc(id: number): Promise<void> {
+    return this.run('v' + id, async () => { const r = await this.api.raw.docs.view(id); this.msg.set(r.ok ? '' : r.reason); await this.load(); });
+  }
+  protected saveDoc(id: number): Promise<void> {
+    return this.run('s' + id, async () => { const r = await this.api.raw.docs.save(id); if (r.ok) this.msg.set('Arquivo salvo em ' + r.path); await this.load(); });
+  }
+  protected saveAll(): Promise<void> {
+    return this.run('todos', async () => {
+      const r = await this.api.raw.docs.saveAll(this.id);
+      if (r.path) this.msg.set(`${r.saved} documento(s) salvo(s) em ${r.path}` + (r.failed?.length ? ` · ${r.failed.length} falharam` : ''));
+      else if (r.reason) this.msg.set(r.reason);
+      await this.load();
+    });
+  }
+  protected refreshDocs(): Promise<void> {
+    return this.run('lista', async () => { const n = await this.api.raw.docs.refresh(this.id); this.msg.set(`${n} documento(s) encontrados no PNCP.`); await this.load(); });
+  }
   protected checkDone(): number { return this.checklist.filter((c) => this.wCheck[c]).length; }
   protected async load(): Promise<void> {
     if (!this.api.available) return;

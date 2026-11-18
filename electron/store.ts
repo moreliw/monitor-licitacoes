@@ -46,7 +46,7 @@ export class Store {
     if (!this.rulesCache) {
       const raw = this.settings.getRaw('rules');
       // Regras salvas idênticas a uma versão padrão anterior são atualizadas para o padrão vigente.
-      const outdatedDefault = raw && ['2026.11.1', '2026.11.2'].includes(raw.version);
+      const outdatedDefault = raw && ['2026.11.1', '2026.11.2', '2026.11.3'].includes(raw.version);
       try { this.rulesCache = raw && !outdatedDefault ? validateRuleSet(raw) : DEFAULT_RULES; } catch { this.rulesCache = DEFAULT_RULES; }
     }
     return this.rulesCache;

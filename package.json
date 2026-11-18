@@ -1,6 +1,6 @@
 {
   "name": "monitor-licitacoes",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "scripts": {
     "ng": "ng",
     "build:ui": "ng build --base-href ./",
@@ -78,7 +78,16 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "shortcutName": "Monitor de Licitações",
-      "artifactName": "monitor-licitacoes-setup-${version}.${ext}"
+      "artifactName": "monitor-licitacoes-setup-${version}.${ext}",
+      "include": "build/installer.nsh",
+      "createStartMenuShortcut": true,
+      "createDesktopShortcut": false,
+      "menuCategory": false,
+      "runAfterFinish": true,
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046"
     },
     "publish": [
       {

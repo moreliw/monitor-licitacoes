@@ -19,7 +19,7 @@ export const LABEL_TEXT: Record<Label, string> = {
 };
 
 export const DEFAULT_RULES: RuleSet = {
-  version: '2026.11.3',
+  version: '2026.11.4',
   params: { funcoesMinimas: 2 },
   orgPatterns: [
     'camara municipal', 'camara de vereadores', 'camara legislativa', 'assembleia legislativa',
@@ -251,7 +251,10 @@ export function classify(input: ClassifyInput, rs: RuleSet = DEFAULT_RULES): Cla
 
   let label: Label;
   let needsEnrichment = false;
-  if (central) label = 'alta';
+  // Fora do Legislativo, o sinal central só vale se vier junto de software (evita consultorias que citam "processo legislativo")
+  const centralSoftware = tech >= 1 || hits('central').some((e) => e.ruleId === 'central-sistema-pl' || e.ruleId === 'central-software-legislativo');
+  if (central && (legislativeOrg || centralSoftware)) label = 'alta';
+  else if (central) label = 'fora';
   else if (legislativeOrg && tech >= 1 && funcs >= rs.params.funcoesMinimas) label = 'alta';
   else if (isolated) label = 'fora';
   // Escopo: software para o Legislativo. Fora de órgão legislativo, só o sinal central conta.

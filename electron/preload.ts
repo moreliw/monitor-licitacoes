@@ -16,6 +16,7 @@ const api = {
   settings: { get: call('settings:get'), set: call('settings:set') },
   rules: { get: call('rules:get'), set: call('rules:set'), reset: call('rules:reset') },
   alerts: { list: call('alerts:list'), read: call('alerts:read'), test: call('alerts:test') },
+  docs: { refresh: call('docs:refresh'), view: call('docs:view'), save: call('docs:save'), saveAll: call('docs:saveAll') },
   update: { state: call('update:state'), check: call('update:check'), install: call('update:install') },
   market: { overview: call('market:overview'), list: call('market:list'), export: call('market:export'), backfill: call('market:backfill') },
   open: call('shell:open'),

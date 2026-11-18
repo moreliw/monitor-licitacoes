@@ -103,3 +103,25 @@ test('protocolo app://: sem travessia de diretório', () => {
   assert.equal(safeJoin(root, '/%2e%2e/secret.txt', path.join, path.sep), null);
   assert.equal(safeJoin(root, '/a\0b', path.join, path.sep), null);
 });
+
+test('editais: cópia local para visualizar/baixar reaproveita o arquivo e usa a extensão real', async () => {
+  const env = makeStore();
+  const { id } = env.store.upsertProcurement(normalizeProcurement(rec(), 'x'), { silent: false, level: 1, route: 'detalhe' });
+  env.store.saveDocuments(id, [
+    { sequencial: 1, titulo: 'Edital Pregão 09/2026.pdf', tipoId: 1, tipoNome: 'Edital', url: 'https://pncp.gov.br/x', dataPublicacao: null, ativo: true },
+    { sequencial: 2, titulo: 'Planilha.xlsx', tipoId: 2, tipoNome: 'Anexo', url: 'https://pncp.gov.br/y', dataPublicacao: null, ativo: true },
+  ]);
+  let calls = 0;
+  const conn = fakeConnector(() => { calls++; return calls === 1 ? buildPdf(['edital']) : new Uint8Array(Buffer.from('PK\x03\x04conteudo')); });
+  const pipe = new DocPipeline(env.store, conn, fs.mkdtempSync(path.join(os.tmpdir(), 'anx-')));
+  const [d1, d2] = env.db.all<any>('SELECT id FROM documents ORDER BY sequencial');
+  const a = await pipe.ensureLocal(d1.id);
+  assert.equal(a.kind, 'pdf');
+  assert.equal(a.fileName, 'Edital Pregão 09_2026.pdf');
+  assert.ok(fs.existsSync(a.path));
+  await pipe.ensureLocal(d1.id);
+  assert.equal(calls, 1, 'não baixa de novo');
+  const b = await pipe.ensureLocal(d2.id);
+  assert.equal(b.kind, 'outro');
+  assert.equal(b.ext, 'xlsx');
+});

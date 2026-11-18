@@ -38,3 +38,8 @@ test('sistema adjacente com software não é derrubado por termos técnicos como
   const r = c('CAMARA MUNICIPAL DE X', 'Locação de sistema web de protocolo eletrônico e gestão documental, com backup diário e segurança da informação');
   assert.equal(r.label, 'revisar');
 });
+
+test('real: consultoria de prefeitura citando "processo legislativo" (Bragança Paulista) fica fora; consórcio com sistema continua alta', () => {
+  assert.equal(c('MUNICIPIO DE BRAGANCA PAULISTA', 'Prestação de serviços técnicos especializados de natureza predominantemente intelectual, visando à revisão do plano diretor participativo, compreendendo apoio ao processo legislativo de aprovação da lei', 'E').label, 'fora');
+  assert.equal(c('CONSORCIO INTERMUNICIPAL X', 'Sistema de apoio ao processo legislativo para as câmaras consorciadas', 'E').label, 'alta');
+});

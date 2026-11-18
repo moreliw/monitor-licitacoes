@@ -1,6 +1,8 @@
 import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, net, powerMonitor, protocol, session, shell, type IpcMainInvokeEvent } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import type { Row } from './db.ts';
 import { createServices, type Services } from './services.ts';
 import { getOpportunity, exportCsv, listAlerts, listJobs, listLogs, listOpportunities, listRuns, searchDocumentExcerpts, sourcesOverview, marketOverview, marketList, marketCsv, opportunityStats, type OppFilter, type MarketFilter } from './query.ts';
 import { resolveSafeUrl, safeJoin } from './links.ts';
@@ -32,6 +34,27 @@ let lastCycleAt = 0;
 
 const gotLock = isSelfTest || app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
+
+/**
+ * Visualizador de PDF em janela própria (leitor nativo do Chromium).
+ * Só abre arquivos locais já validados como PDF; navegação bloqueada; links externos passam pela validação de URL.
+ */
+function openPdfViewer(file: string, title: string): BrowserWindow {
+  const v = new BrowserWindow({
+    width: 1120, height: 900, title, icon: fs.existsSync(ICON) ? ICON : undefined, backgroundColor: '#3c3c3c', autoHideMenuBar: true,
+    webPreferences: { plugins: true, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false },
+  });
+  v.removeMenu();
+  const target = pathToFileURL(file).toString();
+  v.webContents.setWindowOpenHandler(({ url }) => {
+    void resolveSafeUrl(url, (u, i) => net.fetch(u as string, i as any)).then((safe) => { if (safe) void shell.openExternal(safe); });
+    return { action: 'deny' };
+  });
+  v.webContents.on('will-navigate', (e, url) => { if (url !== target) e.preventDefault(); });
+  v.on('page-title-updated', (e) => { e.preventDefault(); v.setTitle(title); });
+  void v.loadURL(target);
+  return v;
+}
 
 function showWindow(route?: string): void {
   if (!win) createWindow();
@@ -188,6 +211,53 @@ function registerIpc(): void {
   handle('opps:stats', () => opportunityStats(store));
   handle('opps:get', (id) => { if (!isId(id)) throw new Error('id inválido'); return getOpportunity(store, id); });
   handle('opps:excerpts', (a) => searchDocumentExcerpts(store, a.id, str(a.q, 100)));
+
+  // ---------- editais: listar, visualizar e baixar ----------
+  handle('docs:refresh', async (id) => {
+    if (!isId(id)) throw new Error('id inválido');
+    const p = db.get<Row>('SELECT cnpj, ano, sequencial FROM procurements WHERE id=?', id);
+    if (!p) throw new Error('Oportunidade não encontrada');
+    const docs = await svc.connector.fetchDocuments({ cnpj: p.cnpj, ano: p.ano, sequencial: p.sequencial });
+    store.saveDocuments(id, docs);
+    return docs.length;
+  });
+  handle('docs:view', async (docId) => {
+    if (!isId(docId)) throw new Error('id inválido');
+    const f = await svc.docs.ensureLocal(docId);
+    if (f.kind !== 'pdf') return { ok: false, reason: `Este arquivo é ${f.ext.toUpperCase()}, não PDF. Use “Baixar”.` };
+    openPdfViewer(f.path, f.fileName);
+    return { ok: true };
+  });
+  handle('docs:save', async (docId) => {
+    if (!isId(docId)) throw new Error('id inválido');
+    const f = await svc.docs.ensureLocal(docId);
+    const r = await dialog.showSaveDialog(win!, { defaultPath: path.join(app.getPath('downloads'), f.fileName), filters: [{ name: f.ext.toUpperCase(), extensions: [f.ext] }] });
+    if (r.canceled || !r.filePath) return { ok: false };
+    fs.copyFileSync(f.path, r.filePath);
+    return { ok: true, path: r.filePath };
+  });
+  handle('docs:saveAll', async (id) => {
+    if (!isId(id)) throw new Error('id inválido');
+    const p = db.get<Row>('SELECT control_id, orgao_nome, uf FROM procurements WHERE id=?', id);
+    const docs = db.all<Row>('SELECT id FROM documents WHERE procurement_id=? AND ativo=1 ORDER BY sequencial', id);
+    if (!p || !docs.length) return { ok: false, reason: 'Nenhum documento listado para esta oportunidade.' };
+    const r = await dialog.showOpenDialog(win!, { title: 'Escolha a pasta para salvar os editais', defaultPath: app.getPath('documents'), properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false };
+    const folderName = `${p.orgao_nome ?? 'Orgao'} (${p.uf ?? ''}) - ${String(p.control_id).replace(/\//g, '-')}`.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 150);
+    const dest = path.join(r.filePaths[0], folderName);
+    fs.mkdirSync(dest, { recursive: true });
+    let saved = 0; const failed: string[] = [];
+    for (const d of docs) {
+      try {
+        const f = await svc.docs.ensureLocal(d.id);
+        let target = path.join(dest, f.fileName);
+        for (let i = 2; fs.existsSync(target); i++) target = path.join(dest, f.fileName.replace(/(\.[^.]+)$/, ` (${i})$1`));
+        fs.copyFileSync(f.path, target); saved++;
+      } catch (e) { failed.push((e as Error).message.slice(0, 120)); }
+    }
+    void shell.openPath(dest);
+    return { ok: saved > 0, path: dest, saved, failed };
+  });
   handle('opps:label', (a) => {
     if (!isId(a?.id) || !(a.label === null || LABELS.includes(a.label))) throw new Error('Parâmetros inválidos');
     store.setManualLabel(a.id, a.label);
@@ -358,6 +428,16 @@ function registerAppProtocol(): void {
 
 if (gotLock) {
   app.whenReady().then(async () => {
+    const testPdf = argOf('--test-pdf-viewer');
+    if (testPdf) {
+      const v = openPdfViewer(testPdf, 'Teste do visualizador');
+      v.webContents.once('did-finish-load', () => setTimeout(async () => {
+        const img = await v.webContents.capturePage();
+        fs.writeFileSync(testPdf + '.png', img.toPNG());
+        app.exit(0);
+      }, 3500));
+      return;
+    }
     if (isSelfTest) {
       const code = await selfTest(app.getPath('userData'), process.argv.find((a) => a.startsWith('--selftest-out='))?.split('=')[1]);
       app.exit(code);

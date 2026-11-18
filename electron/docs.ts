@@ -59,6 +59,17 @@ export function assessText(pages: { text: string }[], truncated: boolean): 'ok' 
   return 'ok';
 }
 
+const SAFE_EXT = ['pdf', 'zip', 'rar', '7z', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'txt', 'csv', 'rtf', 'jpg', 'jpeg', 'png'];
+function safeExt(title: string | null): string {
+  const e = /\.([a-z0-9]{2,4})$/i.exec(title ?? '')?.[1]?.toLowerCase();
+  return e && SAFE_EXT.includes(e) ? e : 'bin';
+}
+/** Nome de arquivo para salvar: título sanitizado + extensão real do conteúdo. */
+export function downloadName(title: string | null, seq: number, ext: string): string {
+  const base = (title ?? '').replace(/\.[a-z0-9]{2,4}$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 100);
+  return `${base || 'documento-' + seq}.${ext}`;
+}
+
 export class DocPipeline {
   constructor(
     private store: Store,
@@ -112,6 +123,36 @@ export class DocPipeline {
       }
       throw e;
     }
+  }
+
+  /**
+   * Garante uma cópia local do anexo (para visualizar/baixar), reaproveitando a já baixada.
+   * O arquivo é guardado pelo hash; a extensão vem da assinatura do conteúdo, nunca do nome externo.
+   */
+  async ensureLocal(docId: number, signal?: AbortSignal): Promise<{ path: string; kind: string; ext: string; fileName: string }> {
+    const db = this.store.db;
+    const d = db.get<any>(
+      `SELECT d.*, p.cnpj, p.ano, p.sequencial FROM documents d JOIN procurements p ON p.id=d.procurement_id WHERE d.id=?`, docId);
+    if (!d) throw new Error('Documento não encontrado.');
+    if (d.local_path && fs.existsSync(d.local_path)) {
+      const ext = path.extname(d.local_path).slice(1) || 'bin';
+      return { path: d.local_path, kind: ext === 'pdf' ? 'pdf' : 'outro', ext, fileName: downloadName(d.titulo, d.sequencial, ext) };
+    }
+    const s = this.store.getSettings();
+    const file = await this.connector.downloadDocument(
+      { cnpj: d.cnpj, ano: d.ano, sequencial: d.sequencial },
+      { sequencial: d.sequencial, titulo: d.titulo, tipoId: d.tipo_id, tipoNome: d.tipo_nome, url: d.url, dataPublicacao: d.data_publicacao, ativo: !!d.ativo },
+      { maxBytes: Math.max(s.maxDocBytes, 150 * 1024 * 1024), timeoutMs: Math.max(s.docTimeoutMs, 120_000), signal },
+    );
+    const kind = sniffFileType(file.bytes);
+    const ext = kind === 'pdf' ? 'pdf' : kind === 'zip' ? (/\.(docx|xlsx|odt|ods)$/i.exec(d.titulo ?? '')?.[1]?.toLowerCase() ?? 'zip') : safeExt(d.titulo);
+    if (kind === 'html') throw new Error('A fonte devolveu uma página HTML em vez do arquivo. Abra o documento no PNCP.');
+    const sha256 = crypto.createHash('sha256').update(file.bytes).digest('hex');
+    const localPath = path.join(this.dir, `${sha256}.${ext}`);
+    if (!fs.existsSync(localPath)) fs.writeFileSync(localPath, file.bytes);
+    db.run('UPDATE documents SET local_path=?, sha256=COALESCE(sha256, ?), bytes=?, fetched_at=COALESCE(fetched_at, ?) WHERE id=?',
+      localPath, sha256, file.bytes.byteLength, this.store.now(), docId);
+    return { path: localPath, kind: kind === 'pdf' ? 'pdf' : 'outro', ext, fileName: downloadName(d.titulo, d.sequencial, ext) };
   }
 
   /** Remove arquivos locais antigos (retenção) sem apagar o texto já extraído. */

@@ -40,19 +40,10 @@ O app consulta o GitHub Releases de `moreliw/monitor-licitacoes` ao abrir e a ca
 plano e mostra **“Atualizar agora”** na barra lateral e em Configurações → Atualizações; um clique instala em silêncio e
 reabre o app (`electron/updater.ts`, electron-updater).
 
-Publicar uma versão:
-
-```bash
-npm version minor --no-git-tag-version
-```
-
-```bash
-GH_TOKEN=$(gh auth token) npm run release
-```
-
-O `npm run release` gera o instalador e publica o Release com `latest.yml` e o `.blockmap` (download diferencial).
-O repositório precisa ser público para o app baixar sem token. Instaladores não assinados podem ser bloqueados pelo
-Controle Inteligente de Aplicativos do Windows; assinar o código resolve.
+Publicar uma versão: `npm run release` (gera, assina, verifica e publica). A assinatura com o certificado Certum
+(SimplySign) está descrita em [docs/assinatura-certum.md](docs/assinatura-certum.md); sem certificado, a publicação é
+bloqueada, e `npm run dist` gera só um instalador local sem assinatura. Instaladores sem assinatura são bloqueados pelo
+Controle Inteligente de Aplicativos do Windows.
 
 ## Stack e versões fixadas
 

@@ -10,8 +10,10 @@
     "start": "npm run build && electron .",
     "selftest": "npm run build && electron . --selftest",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "npm run icon && npm run build && electron-builder --win nsis --x64 --publish never",
-    "release": "npm run icon && npm run build && electron-builder --win nsis --x64 --publish always"
+    "dist": "npm run icon && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never",
+    "release": "node scripts/release.mjs",
+    "sign:check": "node scripts/signing-check.mjs",
+    "sign:verify": "node scripts/verify-signature.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.4",
@@ -69,8 +71,7 @@
           ]
         }
       ],
-      "icon": "build/icon.png",
-      "signAndEditExecutable": false
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,

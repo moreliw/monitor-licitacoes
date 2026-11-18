@@ -132,11 +132,37 @@ export async function offerInstall(): Promise<boolean> {
   }
 }
 
+/**
+ * O Windows escolhe o ícone da barra de tarefas pelo atalho do Menu Iniciar que tem o mesmo AppUserModelID.
+ * Atalhos estranhos com o nosso ID (ex.: "Electron.lnk" criado ao rodar uma cópia de teste) roubam esse papel
+ * e fazem aparecer o ícone do Electron. Remove todos, menos o nosso. Retorna true se removeu algum.
+ */
+function removeForeignShortcuts(): boolean {
+  const programs = path.dirname(startMenuLink());
+  let removed = false;
+  const walk = (dir: string, depth: number) => {
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { if (depth < 2) walk(p, depth + 1); continue; }
+      if (!e.name.toLowerCase().endsWith('.lnk') || same(p, startMenuLink())) continue;
+      try {
+        if (shell.readShortcutLink(p).appUserModelId !== APP_ID) continue;
+        fs.rmSync(p, { force: true });
+        removed = true;
+      } catch { /* atalho ilegível: não é nosso */ }
+    }
+  };
+  walk(programs, 0);
+  return removed;
+}
+
 /** Mantém atalhos e registro em dia (versão exibida, ícone novo após atualização). */
 export function refreshInstallation(): void {
   if (!isPortableRun() || !isInstalled()) return;
   try {
-    const iconChanged = syncStableIcon();
+    const iconChanged = syncStableIcon() || removeForeignShortcuts();
     if (iconChanged || !fs.existsSync(startMenuLink())) shortcut(startMenuLink(), installDir());
     if (iconChanged && fs.existsSync(desktopLink())) shortcut(desktopLink(), installDir());
     registerUninstall();

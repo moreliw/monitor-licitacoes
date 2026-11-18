@@ -50,12 +50,26 @@ if (!gotLock) {
  * Visualizador de PDF em janela própria (leitor nativo do Chromium).
  * Só abre arquivos locais já validados como PDF; navegação bloqueada; links externos passam pela validação de URL.
  */
+/**
+ * Identidade da janela na barra de tarefas do Windows. Sem isto, o botão usa o ícone embutido no executável
+ * (o do Electron, que não pode ser alterado sem o Windows passar a bloquear o app).
+ */
+function applyTaskbarIdentity(w: BrowserWindow): void {
+  if (process.platform !== 'win32') return;
+  const stable = path.join(process.env['LOCALAPPDATA'] || '', 'monitor-licitacoes', 'icone.ico');
+  const icon = fs.existsSync(stable) ? stable : ICON;
+  try {
+    w.setAppDetails({ appId: APP_ID, appIconPath: icon, appIconIndex: 0, relaunchCommand: `"${process.execPath}"`, relaunchDisplayName: 'Monitor de Licitações' });
+  } catch { /* só afeta o ícone da barra de tarefas */ }
+}
+
 function openPdfViewer(file: string, title: string): BrowserWindow {
   const v = new BrowserWindow({
     width: 1120, height: 900, title, icon: fs.existsSync(ICON) ? ICON : undefined, backgroundColor: '#3c3c3c', autoHideMenuBar: true,
     webPreferences: { plugins: true, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false },
   });
   v.removeMenu();
+  applyTaskbarIdentity(v);
   const target = pathToFileURL(file).toString();
   v.webContents.setWindowOpenHandler(({ url }) => {
     void resolveSafeUrl(url, (u, i) => net.fetch(u as string, i as any)).then((safe) => { if (safe) void shell.openExternal(safe); });
@@ -91,6 +105,7 @@ function createWindow(): void {
     },
   });
   win.removeMenu();
+  applyTaskbarIdentity(win);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(APP_ORIGIN)) e.preventDefault(); });
   win.webContents.on('will-attach-webview', (e) => e.preventDefault());

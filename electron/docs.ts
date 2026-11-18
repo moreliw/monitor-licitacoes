@@ -66,9 +66,18 @@ function safeExt(title: string | null): string {
 }
 /** Nome de arquivo para salvar: título sanitizado + extensão real do conteúdo. */
 export function downloadName(title: string | null, seq: number, ext: string): string {
-  const base = (title ?? '').replace(/\.[a-z0-9]{2,4}$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 100);
+  // só remove extensões conhecidas: "EDITAL PR11.2026" mantém o ".2026"
+  const base = (title ?? '').replace(new RegExp(`\\.(${SAFE_EXT.join('|')})$`, 'i'), '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 100);
   return `${base || 'documento-' + seq}.${ext}`;
 }
+
+/**
+ * Documento + dados da compra. `documents.sequencial` (nº do arquivo) e `procurements.sequencial` (nº da compra)
+ * têm o mesmo nome: a compra vem como `compra_sequencial` para não sobrescrever o do arquivo
+ * (antes a URL saía …/compras/<ano>/25/arquivos/25 e o PNCP respondia 404).
+ */
+const DOC_WITH_PROCUREMENT =
+  'SELECT d.*, p.cnpj, p.ano, p.sequencial AS compra_sequencial, p.id AS pid FROM documents d JOIN procurements p ON p.id=d.procurement_id';
 
 export class DocPipeline {
   constructor(
@@ -85,11 +94,11 @@ export class DocPipeline {
     const db = this.store.db;
     const settings = this.store.getSettings();
     const d = db.get<any>(
-      `SELECT d.*, p.cnpj, p.ano, p.sequencial, p.id AS pid FROM documents d JOIN procurements p ON p.id=d.procurement_id WHERE d.id=?`, docId);
+      `${DOC_WITH_PROCUREMENT} WHERE d.id=?`, docId);
     if (!d) return { status: 'inexistente' };
     try {
       const file = await this.connector.downloadDocument(
-        { cnpj: d.cnpj, ano: d.ano, sequencial: d.sequencial },
+        { cnpj: d.cnpj, ano: d.ano, sequencial: d.compra_sequencial },
         { sequencial: d.sequencial, titulo: d.titulo, tipoId: d.tipo_id, tipoNome: d.tipo_nome, url: d.url, dataPublicacao: d.data_publicacao, ativo: !!d.ativo },
         { maxBytes: settings.maxDocBytes, timeoutMs: settings.docTimeoutMs, signal },
       );
@@ -131,8 +140,7 @@ export class DocPipeline {
    */
   async ensureLocal(docId: number, signal?: AbortSignal): Promise<{ path: string; kind: string; ext: string; fileName: string }> {
     const db = this.store.db;
-    const d = db.get<any>(
-      `SELECT d.*, p.cnpj, p.ano, p.sequencial FROM documents d JOIN procurements p ON p.id=d.procurement_id WHERE d.id=?`, docId);
+    const d = db.get<any>(`${DOC_WITH_PROCUREMENT} WHERE d.id=?`, docId);
     if (!d) throw new Error('Documento não encontrado.');
     if (d.local_path && fs.existsSync(d.local_path)) {
       const ext = path.extname(d.local_path).slice(1) || 'bin';
@@ -140,9 +148,10 @@ export class DocPipeline {
     }
     const s = this.store.getSettings();
     const file = await this.connector.downloadDocument(
-      { cnpj: d.cnpj, ano: d.ano, sequencial: d.sequencial },
+      { cnpj: d.cnpj, ano: d.ano, sequencial: d.compra_sequencial },
       { sequencial: d.sequencial, titulo: d.titulo, tipoId: d.tipo_id, tipoNome: d.tipo_nome, url: d.url, dataPublicacao: d.data_publicacao, ativo: !!d.ativo },
-      { maxBytes: Math.max(s.maxDocBytes, 150 * 1024 * 1024), timeoutMs: Math.max(s.docTimeoutMs, 120_000), signal },
+      // pedido do usuário: fila própria, sem esperar a coleta (que pode estar em espera por HTTP 429)
+      { maxBytes: Math.max(s.maxDocBytes, 150 * 1024 * 1024), timeoutMs: Math.max(s.docTimeoutMs, 120_000), signal, interactive: true },
     );
     const kind = sniffFileType(file.bytes);
     const ext = kind === 'pdf' ? 'pdf' : kind === 'zip' ? (/\.(docx|xlsx|odt|ods)$/i.exec(d.titulo ?? '')?.[1]?.toLowerCase() ?? 'zip') : safeExt(d.titulo);

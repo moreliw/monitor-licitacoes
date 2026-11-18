@@ -30,6 +30,12 @@ export interface HttpOptions {
   onAttempt?: (info: { url: string; attempt: number; status?: number; error?: string; waitMs?: number }) => void;
 }
 
+export interface RequestOptions {
+  /** Pedido feito pelo usuário (visualizar/baixar edital): fila separada da coleta e menos tentativas. */
+  interactive?: boolean;
+}
+const INTERACTIVE_LANE = '#usuario';
+
 export interface HttpResult<T = unknown> {
   status: number;
   body: T | null; // null em 204
@@ -124,18 +130,20 @@ export class HttpClient {
   }
 
   /** Executa GET. Lança HttpError(permanent) em 4xx (exceto 408/429), NotFoundError em 404. */
-  async getJson<T = unknown>(url: string, signal?: AbortSignal): Promise<HttpResult<T>> {
-    const r = await this.request(url, signal, true);
+  async getJson<T = unknown>(url: string, signal?: AbortSignal, opts?: RequestOptions): Promise<HttpResult<T>> {
+    const r = await this.request(url, signal, true, false, opts);
     return r as HttpResult<T>;
   }
-  async getRaw(url: string, signal?: AbortSignal): Promise<Response> {
-    return (await this.request(url, signal, false, true)) as unknown as Response;
+  async getRaw(url: string, signal?: AbortSignal, opts?: RequestOptions): Promise<Response> {
+    return (await this.request(url, signal, false, true, opts)) as unknown as Response;
   }
 
-  private async request(url: string, signal: AbortSignal | undefined, parseJson: boolean, rawResponse = false): Promise<HttpResult | Response> {
-    const host = new URL(url).host;
+  private async request(url: string, signal: AbortSignal | undefined, parseJson: boolean, rawResponse = false, opts?: RequestOptions): Promise<HttpResult | Response> {
+    // Pedidos do usuário usam uma fila própria: não esperam atrás da coleta nem herdam a penalidade de 429 dela.
+    const host = new URL(url).host + (opts?.interactive ? INTERACTIVE_LANE : '');
+    const maxRetries = opts?.interactive ? Math.min(2, this.o.maxRetries) : this.o.maxRetries;
     let lastErr: unknown;
-    for (let attempt = 1; attempt <= this.o.maxRetries + 1; attempt++) {
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       if (signal?.aborted) throw new CancelledError();
       await this.acquire(host, signal);
       const ctl = new AbortController();
@@ -180,12 +188,12 @@ export class HttpClient {
         signal?.removeEventListener('abort', onAbort);
         this.release(host);
       }
-      if (attempt > this.o.maxRetries) { this.o.onAttempt?.({ url, attempt, status: lastStatus, error: lastMsg }); break; }
+      if (attempt > maxRetries) { this.o.onAttempt?.({ url, attempt, status: lastStatus, error: lastMsg }); break; }
       this.o.onAttempt?.({ url, attempt, status: lastStatus, error: lastMsg, waitMs });
-      await this.o.sleep(waitMs, signal);
+      await this.o.sleep(opts?.interactive ? Math.min(waitMs, 10_000) : waitMs, signal);
     }
     if (lastErr instanceof HttpError) throw lastErr;
-    throw new HttpError(`Falha de rede após ${this.o.maxRetries + 1} tentativas: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`, 0, url, false);
+    throw new HttpError(`Falha de rede após ${maxRetries + 1} tentativas: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`, 0, url, false);
   }
 
   private backoff(attempt: number): number {

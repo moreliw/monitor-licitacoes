@@ -64,6 +64,24 @@ test('concorrência por host limitada', async () => {
   assert.equal(peak, 2);
 });
 
+test('pedido do usuário não espera a coleta parada por 429 no mesmo host', async () => {
+  // a coleta toma 429 com Retry-After longo: as requisições dela ficam esperando e ocupando as vagas do host
+  const f = fakeFetch({
+    '/api/consulta': () => ({ status: 429, headers: { 'retry-after': '600' } }),
+    '/pncp-api/arquivo': () => ({ status: 200, body: '%PDF-1.7' }),
+  });
+  const forever = new Promise<void>(() => {});
+  const http = new HttpClient({ fetchImpl: f, maxConcurrent: 2, sleep: (ms) => (ms > 1000 ? forever : Promise.resolve()) });
+  for (let i = 0; i < 4; i++) void http.getJson(`https://pncp.gov.br/api/consulta?p=${i}`).catch(() => {});
+  await new Promise((r) => setTimeout(r, 20));
+  const timeout = new Promise<string>((r) => setTimeout(() => r('preso na fila da coleta'), 1000));
+  const user = http.getRaw('https://pncp.gov.br/pncp-api/arquivo', undefined, { interactive: true }).then((res) => `HTTP ${res.status}`);
+  assert.equal(await Promise.race([user, timeout]), 'HTTP 200');
+  // sem a marca de pedido do usuário, o mesmo download continua atrás da coleta (comportamento da fila preservado)
+  const queued = http.getRaw('https://pncp.gov.br/pncp-api/arquivo').then(() => 'passou');
+  assert.equal(await Promise.race([queued, new Promise<string>((r) => setTimeout(() => r('na fila'), 200))]), 'na fila');
+});
+
 test('conector: URL de listagem usa 10–50 por página, formato YYYYMMDD e modalidade', async () => {
   const seen: string[] = [];
   const f = fakeFetch({ '/contratacoes/publicacao': () => ({ status: 200, body: page([rec()], 1, 1) }) }, seen);

@@ -96,8 +96,9 @@ export interface SourceConnector {
   listWindow(q: ListQuery, signal?: AbortSignal): Promise<ListPage>;
   fetchDetail(ref: ProcurementRef, signal?: AbortSignal): Promise<NormalizedProcurement>;
   fetchItems(ref: ProcurementRef, signal?: AbortSignal): Promise<NormalizedItem[]>;
-  fetchDocuments(ref: ProcurementRef, signal?: AbortSignal): Promise<NormalizedDocument[]>;
+  /** `interactive`: pedido do usuário, fora da fila da coleta. */
+  fetchDocuments(ref: ProcurementRef, signal?: AbortSignal, opts?: { interactive?: boolean }): Promise<NormalizedDocument[]>;
   fetchModalidades(signal?: AbortSignal): Promise<{ id: number; nome: string; ativo: boolean }[]>;
   /** Baixa um anexo. Valida host, redirecionamentos, tamanho e tipo. */
-  downloadDocument(ref: ProcurementRef, doc: NormalizedDocument, opts: { maxBytes: number; timeoutMs: number; signal?: AbortSignal }): Promise<{ bytes: Uint8Array; contentType: string; fileName: string }>;
+  downloadDocument(ref: ProcurementRef, doc: NormalizedDocument, opts: { maxBytes: number; timeoutMs: number; signal?: AbortSignal; interactive?: boolean }): Promise<{ bytes: Uint8Array; contentType: string; fileName: string }>;
 }

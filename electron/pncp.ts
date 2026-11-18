@@ -213,9 +213,9 @@ export class PncpConnector implements SourceConnector {
     return out;
   }
 
-  async fetchDocuments(ref: ProcurementRef, signal?: AbortSignal): Promise<NormalizedDocument[]> {
+  async fetchDocuments(ref: ProcurementRef, signal?: AbortSignal, opts?: { interactive?: boolean }): Promise<NormalizedDocument[]> {
     const url = `${PNCP_API}/orgaos/${ref.cnpj}/compras/${ref.ano}/${ref.sequencial}/arquivos`;
-    const res = await this.http.getJson<any>(url, signal);
+    const res = await this.http.getJson<any>(url, signal, opts);
     const arr = res.body === null ? [] : Array.isArray(res.body) ? res.body : Array.isArray(res.body?.data) ? res.body.data : null;
     if (arr === null) throw new SchemaError('Resposta de arquivos não é lista', url);
     return arr.map(normalizeDocument);
@@ -227,7 +227,7 @@ export class PncpConnector implements SourceConnector {
     return res.body.map((m) => ({ id: Number(m.id), nome: String(m.nome), ativo: m.statusAtivo !== false }));
   }
 
-  async downloadDocument(ref: ProcurementRef, doc: NormalizedDocument, opts: { maxBytes: number; timeoutMs: number; signal?: AbortSignal }) {
+  async downloadDocument(ref: ProcurementRef, doc: NormalizedDocument, opts: { maxBytes: number; timeoutMs: number; signal?: AbortSignal; interactive?: boolean }) {
     let url: string = `${PNCP_API}/orgaos/${ref.cnpj}/compras/${ref.ano}/${ref.sequencial}/arquivos/${doc.sequencial}`;
     const ctl = new AbortController();
     const onAbort = () => ctl.abort();
@@ -237,7 +237,7 @@ export class PncpConnector implements SourceConnector {
       for (let hop = 0; hop < 4; hop++) {
         const u = new URL(url);
         if (u.protocol !== 'https:' || !ALLOWED_DOC_HOSTS(u.hostname)) throw new HttpError(`Origem de anexo não permitida: ${u.host}`, 0, url, true);
-        const res = await this.http.getRaw(url, ctl.signal);
+        const res = await this.http.getRaw(url, ctl.signal, { interactive: opts.interactive });
         if (res.status >= 300 && res.status < 400) {
           const loc = res.headers.get('location');
           if (!loc) throw new HttpError('Redirecionamento sem destino', res.status, url, true);

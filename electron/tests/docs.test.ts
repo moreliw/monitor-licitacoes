@@ -104,6 +104,27 @@ test('protocolo app://: sem travessia de diretório', () => {
   assert.equal(safeJoin(root, '/a\0b', path.join, path.sep), null);
 });
 
+test('editais: URL do anexo usa o nº da compra e o nº do arquivo (colunas de mesmo nome não se misturam)', async () => {
+  const env = makeStore();
+  const { id } = env.store.upsertProcurement(normalizeProcurement(rec({ sequencialCompra: 25 }), 'x'), { silent: false, level: 1, route: 'detalhe' });
+  env.store.saveDocuments(id, [{ sequencial: 10, titulo: 'EDITAL PR11.2026', tipoId: 1, tipoNome: 'Edital', url: 'https://pncp.gov.br/x', dataPublicacao: null, ativo: true }]);
+  const calls: { compra: number; arquivo: number; interactive?: boolean }[] = [];
+  const conn: SourceConnector = {
+    ...fakeConnector(() => buildPdf(['edital'])),
+    downloadDocument: async (ref, doc, opts) => {
+      calls.push({ compra: ref.sequencial, arquivo: doc.sequencial, interactive: opts.interactive });
+      return { bytes: buildPdf(['edital ' + 'x'.repeat(40)]), contentType: 'application/pdf', fileName: 'e.pdf' };
+    },
+  };
+  const pipe = new DocPipeline(env.store, conn, fs.mkdtempSync(path.join(os.tmpdir(), 'anx-')));
+  const docId = env.db.get<any>('SELECT id FROM documents').id;
+  const local = await pipe.ensureLocal(docId);
+  assert.deepEqual(calls[0], { compra: 25, arquivo: 10, interactive: true }, 'visualizar: compra 25, arquivo 10, fila do usuário');
+  assert.equal(local.fileName, 'EDITAL PR11.2026.pdf');
+  await pipe.process(docId);
+  assert.deepEqual(calls[1], { compra: 25, arquivo: 10, interactive: undefined }, 'leitura automática: mesma URL, fila da coleta');
+});
+
 test('editais: cópia local para visualizar/baixar reaproveita o arquivo e usa a extensão real', async () => {
   const env = makeStore();
   const { id } = env.store.upsertProcurement(normalizeProcurement(rec(), 'x'), { silent: false, level: 1, route: 'detalhe' });

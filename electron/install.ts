@@ -137,7 +137,7 @@ export async function offerInstall(): Promise<boolean> {
  * Atalhos estranhos com o nosso ID (ex.: "Electron.lnk" criado ao rodar uma cópia de teste) roubam esse papel
  * e fazem aparecer o ícone do Electron. Remove todos, menos o nosso. Retorna true se removeu algum.
  */
-function removeForeignShortcuts(): boolean {
+export function removeForeignShortcuts(): boolean {
   const programs = path.dirname(startMenuLink());
   let removed = false;
   const walk = (dir: string, depth: number) => {
@@ -156,6 +156,18 @@ function removeForeignShortcuts(): boolean {
   };
   walk(programs, 0);
   return removed;
+}
+
+/**
+ * Ao mostrar uma notificação, o Electron cria "Electron.lnk" no Menu Iniciar (nome do executável oficial, sem ícone)
+ * com o nosso AppUserModelID, e o Windows passa a usar o ícone dele na barra de tarefas. O atalho do app já tem o
+ * mesmo ID, então as notificações continuam funcionando sem ele: remove logo depois.
+ */
+let cleanupTimers: NodeJS.Timeout[] = [];
+export function afterNotificationShown(): void {
+  if (!isPortableRun() || !isInstalled()) return; // sem instalação não há atalho nosso para substituí-lo
+  cleanupTimers.forEach(clearTimeout);
+  cleanupTimers = [2_000, 15_000].map((ms) => setTimeout(() => { try { removeForeignShortcuts(); } catch { /* tenta na próxima */ } }, ms));
 }
 
 /** Mantém atalhos e registro em dia (versão exibida, ícone novo após atualização). */

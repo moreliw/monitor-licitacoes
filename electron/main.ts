@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, net, powerMonitor, protocol, session, shell, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, net, powerMonitor, protocol, screen, session, shell, type IpcMainInvokeEvent } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,7 +11,7 @@ import { ymd } from './time.ts';
 import { selfTest } from './selftest.ts';
 import { Updater } from './updater.ts';
 import { APP_ID, REPO, appVersion, versionsDir } from './version.ts';
-import { isInstalled, isPortableRun, offerInstall, refreshInstallation, runUninstall } from './install.ts';
+import { afterNotificationShown, isInstalled, isPortableRun, offerInstall, refreshInstallation, runUninstall } from './install.ts';
 
 const APP_ORIGIN = 'app://local/';
 const UI_DIR = path.join(__dirname, '..', 'dist', 'monitor-licitacoes', 'browser');
@@ -64,8 +64,11 @@ function applyTaskbarIdentity(w: BrowserWindow): void {
 }
 
 function openPdfViewer(file: string, title: string): BrowserWindow {
+  // abre no mesmo monitor da janela principal, centralizado
+  const area = screen.getDisplayMatching(win && !win.isDestroyed() ? win.getBounds() : { x: 0, y: 0, width: 1, height: 1 }).workArea;
+  const width = Math.min(1120, area.width), height = Math.min(900, area.height);
   const v = new BrowserWindow({
-    width: 1120, height: 900, title, icon: fs.existsSync(ICON) ? ICON : undefined, backgroundColor: '#3c3c3c', autoHideMenuBar: true,
+    x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2), width, height, title, icon: fs.existsSync(ICON) ? ICON : undefined, backgroundColor: '#3c3c3c', autoHideMenuBar: true,
     webPreferences: { plugins: true, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false },
   });
   v.removeMenu();
@@ -183,6 +186,7 @@ function fireDueNotifications(): void {
         const note = new Notification({ title: String(n.title), body: String(n.body), silent: false });
         note.on('click', () => showWindow(n.procurement_id ? `/oportunidade/${n.procurement_id}` : '/alertas'));
         note.show();
+        afterNotificationShown();
       } catch (e) { svc.engine.log('warn', `Notificação do Windows indisponível: ${(e as Error).message}`); }
     }
     svc.store.markFired(n.id); // a central de alertas mantém o registro mesmo se o Windows bloquear o aviso
@@ -247,7 +251,7 @@ function registerIpc(): void {
     if (!isId(id)) throw new Error('id inválido');
     const p = db.get<Row>('SELECT cnpj, ano, sequencial FROM procurements WHERE id=?', id);
     if (!p) throw new Error('Oportunidade não encontrada');
-    const docs = await svc.connector.fetchDocuments({ cnpj: p.cnpj, ano: p.ano, sequencial: p.sequencial });
+    const docs = await svc.connector.fetchDocuments({ cnpj: p.cnpj, ano: p.ano, sequencial: p.sequencial }, undefined, { interactive: true });
     store.saveDocuments(id, docs);
     return docs.length;
   });
@@ -376,6 +380,7 @@ function registerIpc(): void {
       const n = new Notification({ title: 'Monitor de Licitações Legislativas', body: 'Teste de notificação: clique para abrir o painel.' });
       n.on('click', () => showWindow('/alertas'));
       n.show();
+      afterNotificationShown();
     }
     return { supported: ok };
   });

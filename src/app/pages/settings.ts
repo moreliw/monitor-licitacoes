@@ -33,7 +33,9 @@ import { Icon } from '../icon';
               @if (upd()?.['status'] === 'baixando') { <div class="bar"><span [style.width.%]="upd()?.['percent'] ?? 0"></span></div> }
               @if (upd()?.['notes']) { <pre class="notes">{{ upd()?.['notes'] }}</pre> }
             </div>
-            @if (['baixando', 'pronto'].includes(upd()?.['status'])) {
+            @if (upd()?.['status'] === 'manual') {
+              <button class="primary" (click)="api.raw.update.openRelease()">Baixar versão {{ upd()?.['version'] }}</button>
+            } @else if (['baixando', 'pronto'].includes(upd()?.['status'])) {
               <button class="primary" (click)="install()"><app-icon name="upload" [size]="15" /> Atualizar para {{ upd()?.['version'] }}</button>
             } @else {
               <button (click)="check()" [disabled]="upd()?.['status'] === 'verificando' || upd()?.['status'] === 'desativado'"><app-icon name="refresh" [size]="15" /> Verificar agora</button>
@@ -156,7 +158,8 @@ export class SettingsPage implements OnInit {
       case 'atualizado': return `Você está na versão mais recente${u['checkedAt'] ? ' (verificado ' + fmtRelative(u['checkedAt']) + ')' : ''}.`;
       case 'baixando': return `Baixando a versão ${u['version']}… ${u['percent'] ?? 0}%`;
       case 'pronto': return `Versão ${u['version']} pronta. Clique para instalar e reiniciar.`;
-      case 'instalando': return 'Instalando e reiniciando…';
+      case 'instalando': return 'Reiniciando na nova versão…';
+      case 'manual': return `A versão ${u['version']} trocou o componente base do app: baixe o pacote completo no GitHub e instale por cima (seus dados são mantidos).`;
       case 'erro': return u['error'] ?? 'Não foi possível verificar.';
       default: return 'A verificação automática roda ao abrir o app e a cada 4 horas.';
     }

@@ -10,6 +10,8 @@ import { sanitizeSettings } from './settings.ts';
 import { ymd } from './time.ts';
 import { selfTest } from './selftest.ts';
 import { Updater } from './updater.ts';
+import { APP_ID, REPO, appVersion, versionsDir } from './version.ts';
+import { isInstalled, isPortableRun, offerInstall, refreshInstallation, runUninstall } from './install.ts';
 
 const APP_ORIGIN = 'app://local/';
 const UI_DIR = path.join(__dirname, '..', 'dist', 'monitor-licitacoes', 'browser');
@@ -32,8 +34,15 @@ let quitting = false;
 let updater: Updater;
 let lastCycleAt = 0;
 
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 const gotLock = isSelfTest || app.requestSingleInstanceLock();
-if (!gotLock) app.quit();
+if (!gotLock) {
+  // rodando do .zip enquanto outra cópia (ex.: a versão antiga) está aberta na bandeja
+  if (isPortableRun() && !isInstalled()) {
+    dialog.showErrorBox('Monitor de Licitações', 'O Monitor já está aberto. Clique com o botão direito no ícone dele na bandeja do Windows, escolha "Encerrar" e abra este de novo.');
+  }
+  app.quit();
+}
 
 /**
  * Visualizador de PDF em janela própria (leitor nativo do Chromium).
@@ -84,6 +93,10 @@ function createWindow(): void {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(APP_ORIGIN)) e.preventDefault(); });
   win.webContents.on('will-attach-webview', (e) => e.preventDefault());
   win.once('ready-to-show', () => { if (!startHidden || !svc.settings.get().fecharParaBandeja) win?.show(); });
+  // a versão carregada abriu a janela: zera o contador de falhas do carregador (volta automática)
+  win.webContents.once('did-finish-load', () => {
+    if (isPortableRun()) { try { fs.writeFileSync(path.join(versionsDir(), 'boot.json'), JSON.stringify({ version: appVersion(), failures: 0 })); } catch { /* pasta ainda não existe */ } }
+  });
   win.on('close', (e) => {
     if (!quitting && svc.settings.get().fecharParaBandeja) { e.preventDefault(); win?.hide(); }
   });
@@ -406,8 +419,14 @@ function registerIpc(): void {
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());
   handle('update:install', () => updater.updateNow());
+  handle('update:openRelease', async () => {
+    const url = updater.get().releaseUrl ?? `https://github.com/${REPO}/releases/latest`;
+    const safe = await resolveSafeUrl(url, (u, i) => net.fetch(u as string, i as any));
+    if (safe && new URL(safe).hostname === 'github.com') await shell.openExternal(safe);
+    return true;
+  });
   handle('app:info', () => ({
-    version: app.getVersion(), dataDir: app.getPath('userData'), platform: process.platform, electron: process.versions.electron,
+    version: appVersion(), dataDir: app.getPath('userData'), platform: process.platform, electron: process.versions.electron,
     sqlite: db.selfCheck(), recovered: svc.recovered, loginItem: app.getLoginItemSettings().openAtLogin,
   }));
 }
@@ -438,6 +457,9 @@ if (gotLock) {
       }, 3500));
       return;
     }
+    if (process.argv.includes('--desinstalar') && isPortableRun()) { await runUninstall(); return; }
+    if (!isSelfTest && await offerInstall()) return;
+    if (!isSelfTest) refreshInstallation();
     if (isSelfTest) {
       const code = await selfTest(app.getPath('userData'), process.argv.find((a) => a.startsWith('--selftest-out='))?.split('=')[1]);
       app.exit(code);

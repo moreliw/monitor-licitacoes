@@ -39,13 +39,14 @@
                 @switch (upd()?.['status']) {
                   @case ('baixando') { Baixando {{ upd()?.['percent'] ?? 0 }}% }
                   @case ('pronto') { Pronta para instalar }
-                  @case ('instalando') { Instalando… }
+                  @case ('instalando') { Reiniciando… }
+                  @case ('manual') { Baixe o pacote completo }
                 }
               </span>
             </span>
           </div>
           @if (upd()?.['status'] === 'baixando') { <div class="bar"><span [style.width.%]="upd()?.['percent'] ?? 0"></span></div> }
-          <button class="primary sm" (click)="installUpdate()" [disabled]="upd()?.['status'] === 'instalando'">Atualizar agora</button>
+          <button class="primary sm" (click)="installUpdate()" [disabled]="upd()?.['status'] === 'instalando'">{{ upd()?.['status'] === 'manual' ? 'Baixar nova versão' : 'Atualizar agora' }}</button>
         </div>
       }
 

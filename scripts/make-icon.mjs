@@ -54,3 +54,24 @@ const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'icon.p
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, png);
 console.log('icone gerado:', out, png.length, 'bytes');
+
+// build/icon.ico (256x256, PNG embutido): reduz 512 -> 256 por média 2x2 e embala no formato ICO.
+const H = N / 2;
+const small = Buffer.alloc(H * H * 4);
+for (let y = 0; y < H; y++) for (let x = 0; x < H; x++) for (let c = 0; c < 4; c++) {
+  let s = 0;
+  for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) s += px[((y * 2 + dy) * N + (x * 2 + dx)) * 4 + c];
+  small[(y * H + x) * 4 + c] = Math.round(s / 4);
+}
+const raw2 = Buffer.alloc((H * 4 + 1) * H);
+for (let y = 0; y < H; y++) { raw2[y * (H * 4 + 1)] = 0; small.copy(raw2, y * (H * 4 + 1) + 1, y * H * 4, (y + 1) * H * 4); }
+const ihdr2 = Buffer.alloc(13); ihdr2.writeUInt32BE(H, 0); ihdr2.writeUInt32BE(H, 4); ihdr2[8] = 8; ihdr2[9] = 6;
+const png256 = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr2), chunk('IDAT', deflateSync(raw2)), chunk('IEND', Buffer.alloc(0))]);
+const icoHead = Buffer.alloc(22);
+icoHead.writeUInt16LE(0, 0); icoHead.writeUInt16LE(1, 2); icoHead.writeUInt16LE(1, 4); // ICO com 1 imagem
+icoHead[6] = 0; icoHead[7] = 0; icoHead[8] = 0; icoHead[9] = 0; // 256x256 (0 = 256), sem paleta
+icoHead.writeUInt16LE(1, 10); icoHead.writeUInt16LE(32, 12);
+icoHead.writeUInt32LE(png256.length, 14); icoHead.writeUInt32LE(22, 18);
+const icoOut = join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'icon.ico');
+writeFileSync(icoOut, Buffer.concat([icoHead, png256]));
+console.log('icone .ico gerado:', icoOut);

@@ -34,16 +34,33 @@ telecom, frota, trânsito, geoprocessamento, IA/BI, legislativo e outros (`elect
 estimado, abertas agora, esfera, UF, tendência semanal e maiores compradores, com lista detalhada e CSV.
 “Ampliar histórico” enfileira meses anteriores (prioridade baixa, pausável).
 
-### Atualizações dentro do app (versão 1.2)
+### Instalação e atualização gratuitas (versão 1.3)
 
-O app consulta o GitHub Releases de `moreliw/monitor-licitacoes` ao abrir e a cada 4 h, baixa a nova versão em segundo
-plano e mostra **“Atualizar agora”** na barra lateral e em Configurações → Atualizações; um clique instala em silêncio e
-reabre o app (`electron/updater.ts`, electron-updater).
+O Windows 11 com **Controle Inteligente de Aplicativos** bloqueia executáveis novos sem assinatura paga, como o
+instalador que o empacotador gerava. Desde a 1.3 o app não tem instalador `.exe`:
 
-Publicar uma versão: `npm run release` (gera, assina, verifica e publica). A assinatura com o certificado Certum
-(SimplySign) está descrita em [docs/assinatura-certum.md](docs/assinatura-certum.md); sem certificado, a publicação é
-bloqueada, e `npm run dist` gera só um instalador local sem assinatura. Instaladores sem assinatura são bloqueados pelo
-Controle Inteligente de Aplicativos do Windows.
+* **Pacote completo** (`MonitorLegislativo-<versão>-win-x64.zip`): contém o `electron.exe` **oficial, sem nenhuma
+  alteração** (apenas renomeado para `Monitor Legislativo.exe`). É o mesmo arquivo usado em milhões de PCs, com
+  reputação conhecida pela Microsoft, por isso o Windows deixa abrir. O app em si é JavaScript, interface e módulos.
+* **Instalação pelo próprio app** (`electron/install.ts`): na primeira abertura a partir do zip, ele oferece
+  "Instalar": copia para `%LOCALAPPDATA%\Programs\Monitor Legislativo`, cria o atalho no Menu Iniciar (e na área de
+  trabalho, opcional), registra-se em "Aplicativos instalados" (desinstalar chama `--desinstalar`) e remove a
+  instalação antiga feita pelo instalador NSIS (até a 1.2.x), mantendo os dados.
+* **Atualização sem instalador** (`electron/updater.ts` + `scripts/portable/bootstrap.js`): o app consulta o último
+  Release de `moreliw/monitor-licitacoes`, baixa só `app-<versão>.tar.gz` (~18 MB), confere o SHA-512 do
+  `app-latest.json`, extrai com o `tar.exe` do Windows em `%LOCALAPPDATA%\monitor-licitacoes\versoes\<versão>` e
+  reinicia. O carregador usa a versão mais nova e volta automaticamente para a versão do pacote se a nova falhar ao
+  abrir. Se uma versão exigir outro Electron, o app avisa e abre a página para baixar o pacote completo.
+
+Publicar uma versão:
+
+```bash
+npm version patch --no-git-tag-version
+```
+
+```bash
+npm run release -- "Texto das novidades"
+```
 
 ## Stack e versões fixadas
 
@@ -54,7 +71,7 @@ Controle Inteligente de Aplicativos do Windows.
 | TypeScript | 5.9 | `electron/` compila para CommonJS em `dist-electron/` |
 | SQLite | `node:sqlite` embutido no Electron (SQLite 3.54.1, **FTS5 ativo**) | **sem dependência nativa**: não há ABI/`electron-rebuild` |
 | PDF | `pdfjs-dist` 5.4 (build legacy) em **processo filho** | extração local, isolada do renderer e do processo principal |
-| Empacotador | electron-builder 26.18 (NSIS x64) | `package-lock.json` versionado |
+| Empacotamento | `scripts/build-portable.mjs` (zip com Electron oficial intacto + pacote de atualização) | sem instalador `.exe`, sem assinatura paga |
 
 > Escolha deliberada: `node:sqlite` do runtime do Electron evita compilar `better-sqlite3` para a ABI do Electron.
 > A versão empacotada é validada pelo `--selftest` (FTS5, migração, busca, PDF, bandeja, notificação).
@@ -74,7 +91,8 @@ Scripts:
 | `npm test` | compila e roda os testes determinísticos (`node:test`, sem rede) |
 | `LIVE=1 npm test` | inclui o smoke test contra o PNCP real |
 | `npm run selftest` | abre o Electron em modo de autoverificação (SQLite/FTS5, busca, PDF, bandeja) |
-| `npm run dist` | gera o instalador NSIS em `release/` |
+| `npm run dist` | gera o pacote completo (zip), a atualização (tar.gz) e o manifesto em `release/` |
+| `npm run release` | gera e publica no GitHub Releases |
 
 Opções de linha de comando do executável: `--hidden` (inicia minimizado na bandeja), `--data-dir=<pasta>`
 (dados isolados), `--selftest --selftest-out=<arquivo.json>`, `--screenshot=<png> --routes=/a,/b --wait=ms`
@@ -145,7 +163,7 @@ nome sanitizado, armazenamento por hash. CSV com UTF‑8 BOM e proteção contra
 
 ## Permissões e comportamento no Windows
 
-* Instalação por usuário (NSIS, sem elevação), com escolha de pasta.
+* Instalação por usuário, sem elevação, feita pelo próprio app (sem instalador `.exe`).
 * “Iniciar com o Windows” (opcional) registra `openAtLogin` com `--hidden`.
 * “Fechar para a bandeja” (padrão): o X oculta a janela; **Encerrar** só pelo menu da bandeja. Instância única.
 * Notificações do Windows: dependem do Assistente de foco/permissões do sistema; a central de Alertas é a fonte de verdade.
@@ -155,7 +173,7 @@ nome sanitizado, armazenamento por hash. CSV com UTF‑8 BOM e proteção contra
 * A coleta automática exige PC ligado, internet e o app ativo na bandeja. Coleta 24/7 exigiria outra máquina.
 * OCR de PDFs escaneados não está incluído: o app sinaliza “somente imagem/extração parcial” e abre o original.
 * Anexos ZIP/não-PDF são ignorados (não executados).
-* O instalador **não é assinado** (sem certificado): o SmartScreen pode exibir aviso na primeira execução.
+* Nada é assinado (sem custo). O executável é o do Electron oficial, por isso o Controle Inteligente de Aplicativos libera; se um dia o Windows passar a avisar, a saída é uma assinatura de código.
 * Fontes complementares (Câmara de Rio Novo do Sul, DOM/AMUNES, Compras.gov.br, contratos/PCA) são a fase seguinte; a
   interface `SourceConnector` está pronta e a tela de Fontes mostra a cobertura real (somente PNCP).
 * O PNCP aplica limite de taxa (HTTP 429) em coletas intensas: a primeira carga pode levar vários ciclos; a retomada é automática.

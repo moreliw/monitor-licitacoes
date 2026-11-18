@@ -1,6 +1,6 @@
 {
   "name": "monitor-licitacoes",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "scripts": {
     "ng": "ng",
     "build:ui": "ng build --base-href ./",
@@ -10,15 +10,12 @@
     "start": "npm run build && electron .",
     "selftest": "npm run build && electron . --selftest",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "npm run icon && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never",
-    "release": "node scripts/release.mjs",
-    "sign:check": "node scripts/signing-check.mjs",
-    "sign:verify": "node scripts/verify-signature.mjs"
+    "dist": "node scripts/build-portable.mjs",
+    "release": "node scripts/release.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.4",
   "dependencies": {
-    "electron-updater": "6.8.11",
     "pdfjs-dist": "^5.4.149"
   },
   "devDependencies": {
@@ -34,7 +31,6 @@
     "@fontsource-variable/inter": "5.2.8",
     "@types/node": "^22.20.5",
     "electron": "^45.3.3",
-    "electron-builder": "^26.18.0",
     "prettier": "^3.8.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
@@ -43,62 +39,6 @@
   "main": "dist-electron/main.js",
   "description": "Monitor de Licitações Legislativas - Moreli.Dev",
   "author": "Moreli.Dev",
-  "build": {
-    "appId": "dev.moreli.monitor-licitacoes",
-    "productName": "Monitor de Licitações Legislativas",
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist-electron/**/*",
-      "!dist-electron/tests/**",
-      "dist/monitor-licitacoes/browser/**/*",
-      "build/icon.png",
-      "package.json"
-    ],
-    "asarUnpack": [
-      "node_modules/pdfjs-dist/**",
-      "node_modules/@napi-rs/**",
-      "dist-electron/pdfworker.js"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false,
-      "shortcutName": "Monitor de Licitações",
-      "artifactName": "monitor-licitacoes-setup-${version}.${ext}",
-      "include": "build/installer.nsh",
-      "createStartMenuShortcut": true,
-      "createDesktopShortcut": false,
-      "menuCategory": false,
-      "runAfterFinish": true,
-      "installerLanguages": [
-        "pt_BR"
-      ],
-      "language": "1046"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "moreliw",
-        "repo": "monitor-licitacoes",
-        "releaseType": "release"
-      }
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/moreliw/monitor-licitacoes.git"

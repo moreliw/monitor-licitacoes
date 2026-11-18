@@ -12,7 +12,7 @@ import { buildPdf } from './testpdf.ts';
  * Uso: "Monitor de Licitações Legislativas.exe" --selftest --selftest-out=resultado.json
  */
 export async function selfTest(dataDir: string, outFile?: string): Promise<number> {
-  const result: Record<string, unknown> = { startedAt: new Date().toISOString(), electron: process.versions.electron, node: process.versions.node };
+  const result: Record<string, unknown> = { startedAt: new Date().toISOString(), electron: process.versions.electron, node: process.versions.node, versao: process.env['MONITOR_APP_VERSION'] ?? null, pasta: process.env['MONITOR_APP_DIR'] ?? null };
   let ok = true;
   const step = async (name: string, fn: () => unknown | Promise<unknown>) => {
     try { result[name] = await fn(); } catch (e) { ok = false; result[name] = { erro: e instanceof Error ? e.message : String(e) }; }

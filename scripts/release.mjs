@@ -1,19 +1,32 @@
-// Publica uma versão no GitHub Releases: confere o certificado, gera e assina, verifica a assinatura e publica.
-// Uso:  npm run release            (exige CERTUM_CERT_SHA1 e SimplySign conectado)
-//       npm run release -- --unsigned   (força publicação sem assinatura; não recomendado)
-import { execSync } from 'node:child_process';
+// Publica uma versão no GitHub Releases (gratuito, sem assinatura):
+//   npm version patch --no-git-tag-version   (ou minor)
+//   npm run release -- "Texto das novidades"
+// Gera o pacote portátil, o pacote de atualização e o manifesto, cria a tag e o Release.
+import { execFileSync, execSync } from 'node:child_process';
+import fs from 'node:fs';
 
-const unsigned = process.argv.includes('--unsigned');
-const run = (cmd, env = {}) => execSync(cmd, { stdio: 'inherit', env: { ...process.env, ...env } });
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const ver = pkg.version;
+const notes = process.argv.slice(2).join(' ').trim();
 
-if (!unsigned) run('node scripts/signing-check.mjs');
-const token = process.env.GH_TOKEN || execSync('gh auth token', { encoding: 'utf8' }).trim();
-if (!token) throw new Error('Sem token do GitHub: rode "gh auth login".');
+try { execFileSync('gh', ['auth', 'status'], { stdio: 'ignore' }); } catch { throw new Error('Faça login no GitHub: gh auth login'); }
+try { execFileSync('gh', ['release', 'view', `v${ver}`], { stdio: 'ignore' }); throw new Error(`A versão v${ver} já foi publicada. Aumente a versão antes (npm version patch --no-git-tag-version).`); }
+catch (e) { if (String(e.message).includes('já foi publicada')) throw e; }
 
-run('node scripts/make-icon.mjs');
-run('npm run build');
-run('npx electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish always', {
-  GH_TOKEN: token, MONITOR_RELEASE: '1', ...(unsigned ? { MONITOR_ALLOW_UNSIGNED: '1' } : {}),
-});
-if (!unsigned) run('node scripts/verify-signature.mjs');
-console.log('\nVersão publicada. Confira em https://github.com/moreliw/monitor-licitacoes/releases');
+execSync('node scripts/build-portable.mjs', { stdio: 'inherit', env: { ...process.env, RELEASE_NOTES: notes } });
+
+const body = [
+  notes ? `## Novidades\n${notes}\n` : '',
+  '## Instalar (primeira vez)',
+  `1. Baixe **MonitorLegislativo-${ver}-win-x64.zip**, clique com o botão direito e escolha **Extrair tudo**.`,
+  '2. Abra a pasta extraída e dê dois cliques em **Monitor Legislativo.exe**.',
+  '3. Escolha **Instalar**. O app cria o atalho no Menu Iniciar (e na área de trabalho, se marcado) e aparece em "Aplicativos instalados".',
+  '',
+  'Já tem o app instalado? Ele baixa esta versão sozinho e mostra **Atualizar agora**.',
+].join('\n');
+fs.writeFileSync('release/notes.md', body);
+
+execFileSync('gh', ['release', 'create', `v${ver}`,
+  `release/MonitorLegislativo-${ver}-win-x64.zip`, `release/app-${ver}.tar.gz`, 'release/app-latest.json',
+  '--title', ver, '--notes-file', 'release/notes.md', '--target', 'main'], { stdio: 'inherit' });
+console.log(`\nPublicado: https://github.com/moreliw/monitor-licitacoes/releases/tag/v${ver}`);

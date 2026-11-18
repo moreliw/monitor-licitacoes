@@ -36,10 +36,13 @@ export class App {
     return p?.['totalPages'] ? Math.min(100, Math.round(((p['page'] ?? 0) / p['totalPages']) * 100)) : null;
   });
   protected readonly upd = computed(() => this.api.update());
-  protected readonly showUpdate = computed(() => ['baixando', 'pronto', 'instalando'].includes(this.upd()?.['status']));
+  protected readonly showUpdate = computed(() => ['baixando', 'pronto', 'instalando', 'manual'].includes(this.upd()?.['status']));
 
   protected sync(): void { void this.api.raw?.sync.run(); }
-  protected installUpdate(): void { void this.api.raw?.update.install(); }
+  protected installUpdate(): void {
+    if (this.upd()?.['status'] === 'manual') void this.api.raw?.update.openRelease();
+    else void this.api.raw?.update.install();
+  }
   protected cycleTheme(): void {
     const t = this.api.theme();
     this.api.setTheme(t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto');

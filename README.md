@@ -138,6 +138,50 @@ npm version patch --no-git-tag-version
 npm run release -- "Texto das novidades"
 ```
 
+### Aderência ao Ágil e acervo sem perdas (versão 1.4)
+
+**Aderência ao Ágil** (`electron/agil.ts`). Cada oportunidade recebe uma aderência ao Ágil, o sistema de processo legislativo da Moreli.Dev, calculada pelo objeto, pelos itens e pelo texto dos editais. As categorias são:
+
+* processo legislativo;
+* plenário;
+* compilação;
+* complemento;
+* condicionada (o lote exige ERP, equipamentos ou manutenção de sistema legado);
+* fora.
+
+Junto com a aderência saem uma pontuação de 0 a 100, os temas encontrados e a situação de cada tema no Ágil (entregue, em andamento, a desenvolver, fora do produto) com a entrega do plano (L001–L089). Saem também as parcelas fora do produto, que pedem parceria, revenda ou módulo de enquadramento. A lista ganha o filtro **Ágil**, a ordenação **Aderência ao Ágil** e o indicador **Alvos do Ágil abertos**. O detalhe mostra a seção **Aderência ao Ágil**, e o CSV traz as colunas correspondentes.
+
+Oportunidades abertas com aderência de processo legislativo, plenário ou compilação entram sozinhas em **Triagem** e recebem os lembretes de prazo. Isso acontece uma única vez por oportunidade: quem foi tirado do acompanhamento não volta. A opção pode ser desligada em Configurações.
+
+O catálogo espelha `docs/implementation/requisitos/relatorio-requisitos.md` do repositório do Ágil. Quando uma entrega mudar de situação, atualize `situacao` em `AGIL_TEMAS` e incremente `AGIL_VERSION`; a próxima abertura recalcula todo o acervo.
+
+**Acervo sem perdas.**
+
+* Quem já foi candidato do nicho (`ever_candidate`) nunca sai do banco por reclassificação. Até a 1.3.4, um registro "pendente" que virava "fora" depois da leitura do edital era apagado; foi o caso de Santa Isabel/SP. Agora ele só fica fora da lista padrão: aparece com "Mostrar também fora do perfil".
+* Na primeira abertura da 1.4, as janelas de publicação dos últimos 30 dias são relidas para trazer de volta o que foi apagado.
+* Cópia diária do banco (`VACUUM INTO`) em `dados/backups/monitor-AAAAMMDD.sqlite`; ficam as 14 mais recentes, número ajustável. Se o banco corromper, o app restaura a cópia mais recente em vez de recomeçar vazio.
+* Arquivos de anexo de oportunidades do nicho não são apagados pela retenção.
+
+**Anexos.**
+
+* Os anexos marcados como "Anexo não encontrado" pela URL antiga voltam para a fila.
+* Se o PNCP responder 404 e já houver cópia local, o texto é extraído dela. Sem cópia, o app tenta de novo em 1, 2, 4 e 8 dias.
+* ZIPs são abertos sem dependência nova (`electron/zip.ts`): PDFs, DOCX, ODT e TXT de dentro deles viram texto pesquisável. DOCX e ODT avulsos também.
+* A fila de leitura passa a incluir retificações, respostas a impugnação, ETP, anexos e atas, além de edital e TR, para oportunidades relevantes, acompanhadas ou com aderência ao Ágil. As abertas vêm primeiro.
+* PDFs só de imagem continuam sem OCR e aparecem como "escaneado".
+
+**Lista.** A lista mostra quantas vezes a mesma compra foi republicada e marca "Datas a conferir" quando a publicação é posterior ao encerramento.
+
+**Regras 2026.11.5.** Entram como sinal:
+
+* software de plenário e votação;
+* repositório e compilação legislativa;
+* atividades parlamentares;
+* sessões legislativas;
+* emendas parlamentares.
+
+Passam a contar contra: viagens, publicidade, saúde ocupacional, auxílio-alimentação, combustível e assessoria tributária.
+
 ## Stack e versões fixadas
 
 | Parte | Versão | Observação |

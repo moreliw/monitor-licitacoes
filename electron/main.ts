@@ -212,6 +212,7 @@ const FROM_APP = (e: IpcMainInvokeEvent) => !!e.senderFrame && e.senderFrame.url
 const isId = (x: unknown): x is number => Number.isInteger(x) && (x as number) > 0;
 const str = (x: unknown, max = 500): string => { if (typeof x !== 'string' || x.length > max) throw new Error('Parâmetro inválido'); return x; };
 const LABELS = ['alta', 'revisar', 'fora', 'pendente'];
+const ADERENCIAS = ['nucleo', 'plenario', 'compilacao', 'complemento', 'condicionada', 'fora'];
 const STATES = ['Abertura futura', 'Recebendo propostas', 'Prazo encerrado', 'Sem prazo confirmado', 'Suspensa', 'Revogada', 'Anulada'];
 
 export function sanitizeFilter(x: any): OppFilter {
@@ -225,7 +226,9 @@ export function sanitizeFilter(x: any): OppFilter {
   if (typeof x.fonte === 'string' && /^[a-z0-9_-]{1,30}$/.test(x.fonte)) f.fonte = x.fonte;
   if (Number.isInteger(x.prazoDias) && x.prazoDias > 0 && x.prazoDias <= 365) f.prazoDias = x.prazoDias;
   if (['todas', 'acompanhadas', 'favoritas', 'triagem', 'analise', 'descartada'].includes(x.watch)) f.watch = x.watch;
-  if (['prazo', 'publicacao', 'relevancia', 'orgao', 'valor'].includes(x.sort)) f.sort = x.sort;
+  if (Array.isArray(x.aderencia)) f.aderencia = x.aderencia.filter((a: unknown) => ADERENCIAS.includes(a as string));
+  if (x.incluirFora === true) f.incluirFora = true;
+  if (['prazo', 'publicacao', 'relevancia', 'orgao', 'valor', 'agil'].includes(x.sort)) f.sort = x.sort;
   if (x.dir === 'asc' || x.dir === 'desc') f.dir = x.dir;
   if (Number.isInteger(x.page) && x.page > 0 && x.page < 100000) f.page = x.page;
   if (Number.isInteger(x.pageSize)) f.pageSize = x.pageSize;

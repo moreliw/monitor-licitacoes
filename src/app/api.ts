@@ -14,6 +14,18 @@ export const LABEL_TEXT: Record<string, string> = {
   alta: 'Alta relevância', revisar: 'Revisar', fora: 'Fora do perfil', pendente: 'Evidência pendente',
 };
 export const WATCH_TEXT: Record<string, string> = { triagem: 'Triagem', analise: 'Em análise', descartada: 'Descartada' };
+/** Aderência ao Ágil (catálogo em electron/agil.ts). */
+export const AGIL_TEXT: Record<string, string> = {
+  nucleo: 'Ágil: processo legislativo', plenario: 'Ágil: plenário', compilacao: 'Ágil: compilação',
+  complemento: 'Ágil: complemento', condicionada: 'Ágil: condicionada', fora: 'Fora do Ágil',
+};
+export const AGIL_CHIP: Record<string, string> = {
+  nucleo: 'Processo legislativo', plenario: 'Plenário', compilacao: 'Compilação', complemento: 'Complemento', condicionada: 'Condicionada', fora: 'Fora do Ágil',
+};
+export const SITUACAO_TEXT: Record<string, string> = { pronto: 'Entregue', parcial: 'Em andamento', falta: 'A desenvolver', fora: 'Fora do produto' };
+export function agilTone(a: string | null | undefined): string {
+  return a === 'nucleo' || a === 'plenario' || a === 'compilacao' ? 'b-ok' : a === 'complemento' ? 'b-info' : a === 'condicionada' ? 'b-warn' : 'b-neutral';
+}
 export const STATES = ['Abertura futura', 'Recebendo propostas', 'Prazo encerrado', 'Sem prazo confirmado', 'Suspensa', 'Revogada', 'Anulada'];
 export const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SP', 'SE', 'TO'];
 export const MODALIDADES: Record<number, string> = { 4: 'Concorrência eletrônica', 5: 'Concorrência presencial', 6: 'Pregão eletrônico', 7: 'Pregão presencial', 8: 'Dispensa', 9: 'Inexigibilidade' };

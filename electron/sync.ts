@@ -2,7 +2,8 @@ import type { Row } from './db.ts';
 import type { ListQuery, ListRoute, SourceConnector } from './connector.ts';
 import { CancelledError, HttpError, NotFoundError, SchemaError } from './http.ts';
 import type { Store } from './store.ts';
-import type { DocPipeline } from './docs.ts';
+import { MAX_DOC_ATTEMPTS, type DocPipeline } from './docs.ts';
+import { dailyBackup } from './backup.ts';
 import { addDaysYmd, daysBetween, eachDay, ymd } from './time.ts';
 
 export type JobKind = 'discover' | 'update' | 'reconcile' | 'refetch' | 'enrich' | 'doc';
@@ -204,11 +205,21 @@ export class SyncEngine {
   /** Fila separada para anexos prioritários (edital/TR) e revalidação periódica de hash. */
   planDocs(): number {
     if (!this.docs) return 0;
+    // Edital/TR de todo candidato; retificações, ETP e anexos de quem é relevante, acompanhado ou alvo do Ágil.
+    // Anexos que o PNCP respondeu como inexistentes voltam à fila no prazo de revalidação (até MAX_DOC_ATTEMPTS).
+    const now = this.nowIso();
     const rows = this.db.all<Row>(
       `SELECT d.id FROM documents d JOIN procurements p ON p.id=d.procurement_id
-       WHERE d.ativo=1 AND d.priority>=90 AND p.relevance IN ('alta','revisar','pendente')
-         AND (d.status='pendente' OR (d.status='baixado' AND d.revalidate_at IS NOT NULL AND d.revalidate_at < ? AND p.derived_state IN ('Abertura futura','Recebendo propostas')))
-       ORDER BY d.priority DESC, p.relevance_score DESC LIMIT 100`, this.nowIso());
+       LEFT JOIN agil_fit f ON f.procurement_id=p.id
+       LEFT JOIN watchlist w ON w.procurement_id=p.id AND w.status!='descartada'
+       WHERE d.ativo=1
+         AND (p.relevance IN ('alta','revisar','pendente') OR w.procurement_id IS NOT NULL OR f.aderencia IN ('nucleo','plenario','compilacao','complemento','condicionada'))
+         AND d.priority >= CASE WHEN p.relevance IN ('alta','revisar') OR w.procurement_id IS NOT NULL OR f.aderencia IN ('nucleo','plenario','compilacao') THEN 60 ELSE 90 END
+         AND (d.status='pendente'
+              OR (d.status='erro' AND d.attempts < ${MAX_DOC_ATTEMPTS} AND d.revalidate_at IS NOT NULL AND d.revalidate_at < ?)
+              OR (d.status='baixado' AND d.revalidate_at IS NOT NULL AND d.revalidate_at < ? AND p.derived_state IN ('Abertura futura','Recebendo propostas')))
+       ORDER BY (p.derived_state IN ('Abertura futura','Recebendo propostas')) DESC, (w.procurement_id IS NOT NULL) DESC, d.priority DESC, p.relevance_score DESC
+       LIMIT 150`, now, now);
     this.db.tx(() => { for (const r of rows) this.upsertJob('doc', `doc:${this.connector.id}:${r.id}`, { documentId: r.id }, 4, true); });
     return rows.length;
   }
@@ -516,9 +527,35 @@ export class SyncEngine {
     this.db.run('DELETE FROM sync_log WHERE ts < ?', new Date(this.nowMs() - s.retencaoLogDias * 86_400_000).toISOString());
     this.db.run("DELETE FROM sync_jobs WHERE status IN ('concluido','dividido') AND kind IN ('discover','update','reconcile') AND finished_at < ?", new Date(this.nowMs() - 60 * 86_400_000).toISOString());
     this.docs?.purge(s.retencaoAnexosDias);
-    // candidatos que o enriquecimento mostrou estarem fora do nicho saem do acervo
+    // só sai do acervo o que nunca foi candidato do nicho (guardado com "guardar fora do perfil")
     const purged = this.store.purgeOutOfProfile();
-    if (purged) this.log('info', `${purged} contratações fora do perfil removidas do acervo após análise de itens/documentos.`);
+    if (purged) this.log('info', `${purged} contratações que nunca foram do nicho removidas do acervo.`);
+    try {
+      const b = dailyBackup(this.db, s.backupsManter, this.clock());
+      if (b) this.log('info', `Cópia diária do banco gravada (${b.split(/[\\/]/).pop()}).`);
+    } catch (e) { this.log('warn', `Cópia diária do banco falhou: ${(e as Error).message}`); }
+  }
+
+  /**
+   * Reabre as janelas de publicação dos últimos `days` dias (prioridade acima da carga histórica) para que contratações
+   * apagadas por versões antigas, ou descartadas por regras antigas, voltem ao acervo.
+   */
+  replanRecent(days: number): number {
+    const s = this.store.getSettings();
+    const today = ymd(this.clock());
+    const ufs = s.ufColeta.length ? s.ufColeta : [null];
+    let n = 0;
+    this.db.tx(() => {
+      for (const day of eachDay(addDaysYmd(today, -days), today)) {
+        for (const mod of this.enabledModalidades()) {
+          for (const uf of ufs) {
+            this.upsertJob('discover', `discover:${this.connector.id}:${mod}:${day}:${uf ?? 'BR'}`, { day, modalidade: mod, uf }, 4, true);
+            n++;
+          }
+        }
+      }
+    });
+    return n;
   }
 
   /** Reenfileira jobs com erro permanente (ação explícita do usuário). */

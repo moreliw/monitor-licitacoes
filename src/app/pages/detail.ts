@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Api, LABEL_TEXT, Row, WATCH_TEXT, deadlineTone, fmtDate, fmtDay, fmtMoney, fmtRelative, stateTone } from '../api';
+import { AGIL_TEXT, Api, LABEL_TEXT, Row, SITUACAO_TEXT, WATCH_TEXT, agilTone, deadlineTone, fmtDate, fmtDay, fmtMoney, fmtRelative, stateTone } from '../api';
 import { Icon } from '../icon';
 
 export const CHECKLIST = [
@@ -21,8 +21,10 @@ const GROUP_TEXT: Record<string, string> = {
     @if (d(); as o) {
       <header class="hero card fade-in">
         <div class="row tags">
+          @if (o['agil']; as g) { <span class="badge" [class]="'badge ' + agilTone(g['aderencia'])">{{ agilText[g['aderencia']] }}{{ g['aderencia'] !== 'fora' ? ' · ' + g['score'] + '/100' : '' }}</span> }
           <span class="badge" [class]="'badge b-' + o['relevance']">{{ labelText[o['relevance']] }}</span>
           <span class="badge" [class]="'badge ' + stateTone(o['derived_state'])">{{ o['derived_state'] }}</span>
+          @if (o['datas_a_conferir']) { <span class="badge b-warn">Datas a conferir: publicação posterior ao encerramento</span> }
           @if (o['not_found_at']) { <span class="badge b-warn">Detalhe 404 · situação mantida</span> }
           <span class="mono muted right">{{ o['control_id'] }}</span>
         </div>
@@ -89,6 +91,35 @@ const GROUP_TEXT: Record<string, string> = {
               </div>
             </div>
           </section>
+
+          @if (o['agil']; as g) {
+            <section class="card pad" aria-labelledby="h-agil">
+              <h2 id="h-agil">Aderência ao Ágil</h2>
+              <p class="muted small" style="margin:4px 0 12px">{{ g['resumo'] }}</p>
+              @if (g['bloqueios'].length) {
+                <div class="banner warn small" style="margin-bottom:10px">Fora do Ágil (parceria, revenda ou módulo de enquadramento): {{ g['bloqueios'].join(', ') }}</div>
+              }
+              @if (g['temas'].length === 0) { <p class="muted">Nenhum tema do catálogo do Ágil encontrado no objeto, itens ou editais lidos.</p> }
+              <div class="temas">
+                @for (t of g['temas']; track t.id) {
+                  <div class="tema" [class]="'tema s-' + t.situacao">
+                    <span class="grow">{{ t.label }}</span>
+                    <span class="muted small">{{ t.entrega }}{{ t.noObjeto ? ' · no objeto' : ' · ' + t.mencoes + ' menções' }}</span>
+                    <span class="badge plain" [class]="'badge plain ' + situacaoTone(t.situacao)">{{ situacaoText[t.situacao] }}</span>
+                  </div>
+                }
+              </div>
+              <p class="muted small" style="margin-top:10px">Situação conforme o relatório de requisitos do Ágil. A lista é um indicador: confira cada exigência no TR antes de ofertar.</p>
+            </section>
+          }
+          @if (o['republicacoes_lista']?.length) {
+            <section class="card pad">
+              <h2>Outras publicações da mesma compra</h2>
+              @for (x of o['republicacoes_lista']; track x['id']) {
+                <p class="small"><a [routerLink]="['/oportunidade', x['id']]">{{ x['control_id'] }}</a> · publicada {{ fmtDay(x['data_publicacao']) }} · {{ x['derived_state'] }}</p>
+              }
+            </section>
+          }
 
           <section class="card" aria-labelledby="h-it">
             <div class="card-head"><h2 id="h-it" class="grow">Itens <span class="muted">({{ o['items'].length }})</span></h2></div>
@@ -231,6 +262,9 @@ const GROUP_TEXT: Record<string, string> = {
     .ev-head { gap: 8px; }
     q { quotes: none; color: var(--text-2); font-size: 13px; line-height: 1.5; } q::before { content: '“'; } q::after { content: '”'; }
     .excerpt { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); margin-bottom: 8px; }
+    .temas { display: grid; gap: 6px; }
+    .tema { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--border); border-left: 3px solid var(--neutral); border-radius: 8px; font-size: 13px; }
+    .tema.s-pronto { border-left-color: var(--ok); } .tema.s-parcial { border-left-color: var(--info); } .tema.s-falta { border-left-color: var(--warn); } .tema.s-fora { border-left-color: var(--bad); }
     .docs { display: grid; gap: 8px; }
     .doc { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
     .doc-icon { width: 32px; height: 32px; border-radius: 7px; display: grid; place-items: center; border: 1px solid var(--border); color: var(--muted); flex: none; }
@@ -262,6 +296,8 @@ export class DetailPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   protected readonly api = inject(Api);
   protected readonly labelText = LABEL_TEXT;
+  protected readonly agilText = AGIL_TEXT; protected readonly agilTone = agilTone; protected readonly situacaoText = SITUACAO_TEXT;
+  protected situacaoTone(s: string): string { return s === 'pronto' ? 'b-ok' : s === 'parcial' ? 'b-info' : s === 'falta' ? 'b-warn' : 'b-bad'; }
   protected readonly groupText = GROUP_TEXT;
   protected readonly checklist = CHECKLIST;
   protected readonly watchOptions = Object.entries(WATCH_TEXT);
@@ -309,7 +345,7 @@ export class DetailPage implements OnInit, OnDestroy {
     if (!this.api.available) return;
     try {
       const o = await this.api.raw.opps.get(this.id);
-      if (!o) { this.error.set('Oportunidade não encontrada (pode ter sido removida por estar fora do nicho).'); return; }
+      if (!o) { this.error.set('Oportunidade não encontrada no acervo local.'); return; }
       this.d.set(o);
       this.wStatus = o.watch?.status ?? ''; this.wFav = !!o.watch?.favorito; this.wNotes = o.watch?.notes ?? ''; this.wCheck = { ...(o.watch?.checklist ?? {}) };
     } catch (e) { this.error.set((e as Error).message); }

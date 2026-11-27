@@ -1,10 +1,10 @@
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Api, LABEL_TEXT, MODALIDADES, Row, UFS, WATCH_TEXT, deadlineTone, fmtDate, fmtDay, fmtInt, fmtMoney, fmtRelative, stateTone } from '../api';
+import { AGIL_CHIP, AGIL_TEXT, Api, LABEL_TEXT, MODALIDADES, Row, UFS, WATCH_TEXT, agilTone, deadlineTone, fmtDate, fmtDay, fmtInt, fmtMoney, fmtRelative, stateTone } from '../api';
 import { Icon } from '../icon';
 
-type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
+type Quick = 'todas' | 'abertas' | 'encerram7' | 'agil' | 'acompanhadas';
 
 @Component({
   selector: 'app-opportunities',
@@ -13,7 +13,7 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
     <header class="page-head">
       <div class="titles">
         <h1>Oportunidades</h1>
-        <p>Licitações de processo legislativo, protocolo, gestão documental, e-SIC e portais para Câmaras e Assembleias de todo o Brasil.</p>
+        <p>Licitações de processo legislativo, plenário, protocolo, gestão documental e portais para Câmaras e Assembleias de todo o Brasil, com a aderência de cada uma ao Ágil.</p>
       </div>
       <div class="actions">
         @if (naming()) {
@@ -41,10 +41,10 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
         <span class="k-value">{{ fmtInt(s()?.['encerram7']) }}</span>
         <span class="k-sub">prazo de propostas próximo</span>
       </button>
-      <button class="kpi" [class.active]="quick() === 'alta'" (click)="setQuick('alta')">
-        <span class="k-label">Alta relevância</span>
-        <span class="k-value">{{ fmtInt(s()?.['alta']) }}</span>
-        <span class="k-sub">{{ fmtInt(s()?.['revisar']) }} para revisar · {{ fmtInt(s()?.['pendente']) }} pendentes</span>
+      <button class="kpi" [class.active]="quick() === 'agil'" (click)="setQuick('agil')">
+        <span class="k-label">Alvos do Ágil abertos</span>
+        <span class="k-value">{{ fmtInt(s()?.['alvosAbertos']) }}</span>
+        <span class="k-sub">+ {{ fmtInt(s()?.['condicionadasAbertas']) }} condicionadas · {{ fmtInt(s()?.['alta']) }} de alta relevância</span>
       </button>
       <button class="kpi" [class.active]="quick() === 'acompanhadas'" (click)="setQuick('acompanhadas')">
         <span class="k-label">Acompanhadas</span>
@@ -67,6 +67,7 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
         </select>
         <label class="sr-only" for="sort">Ordenar por</label>
         <select id="sort" class="sort" [(ngModel)]="sort" (ngModelChange)="search()">
+          <option value="agil">Aderência ao Ágil</option>
           <option value="relevancia">Mais relevantes</option>
           <option value="prazo">Prazo mais próximo</option>
           <option value="publicacao">Mais recentes</option>
@@ -79,6 +80,12 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
         <div class="chips" role="group" aria-label="Relevância">
           @for (r of relevancias; track r[0]) {
             <button class="chip" [attr.aria-pressed]="relevancia.includes(r[0])" (click)="toggle(relevancia, r[0])">{{ r[1] }}</button>
+          }
+        </div>
+        <span class="divider"></span>
+        <div class="chips" role="group" aria-label="Aderência ao Ágil">
+          @for (a of aderencias; track a[0]) {
+            <button class="chip" [attr.aria-pressed]="aderencia.includes(a[0])" (click)="toggle(aderencia, a[0])">{{ a[1] }}</button>
           }
         </div>
         <span class="divider"></span>
@@ -97,6 +104,7 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
               <button class="chip" [attr.aria-pressed]="modalidade.includes(m[0])" (click)="toggle(modalidade, m[0])">{{ m[1] }}</button>
             }
           </div>
+          <label class="check-inline"><input type="checkbox" [(ngModel)]="incluirFora" (ngModelChange)="search()" /> Mostrar também fora do perfil</label>
           <label class="sr-only" for="saved">Filtros salvos</label>
           <select id="saved" class="saved right" [(ngModel)]="savedId" (ngModelChange)="applySaved()">
             <option [ngValue]="null">Filtros salvos</option>
@@ -151,10 +159,13 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
                   <span class="sep">·</span><span>publicada {{ fmtDay(r['data_publicacao']) }}</span>
                 </span>
                 <span class="tags">
+                  @if (r['agil_aderencia']) { <span class="badge" [class]="'badge ' + agilTone(r['agil_aderencia'])" [title]="r['agil_resumo']">{{ agilText[r['agil_aderencia']] }}{{ r['agil_aderencia'] !== 'fora' ? ' · ' + r['agil_score'] : '' }}</span> }
                   <span class="badge" [class]="'badge b-' + r['relevance']">{{ labelText[r['relevance']] }}</span>
                   <span class="badge" [class]="'badge ' + stateTone(r['derived_state'])">{{ r['derived_state'] }}</span>
                   @if (r['watch_status']) { <span class="badge b-primary">{{ watchText[r['watch_status']] }}</span> }
                   @if (r['manual']) { <span class="small muted">decisão manual</span> }
+                  @if (r['republicacoes']) { <span class="badge b-neutral" title="A mesma compra foi publicada mais de uma vez no PNCP">+{{ r['republicacoes'] }} republicação</span> }
+                  @if (r['datas_a_conferir']) { <span class="badge b-warn" title="Publicação posterior ao encerramento: confira as datas no edital">Datas a conferir</span> }
                 </span>
               </a>
               <div class="side-info">
@@ -214,6 +225,7 @@ type Quick = 'todas' | 'abertas' | 'encerram7' | 'alta' | 'acompanhadas';
     .dl-rel { font-size: 12px; }
     .dl-rel.t-bad { color: var(--bad); font-weight: 500; } .dl-rel.t-warn { color: var(--warn); font-weight: 500; } .dl-rel.t-ok { color: var(--ok); } .dl-rel.t-neutral { color: var(--muted); }
     .value { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+    .check-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-left: 12px; }
     .pager { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); }
   `,
 })
@@ -223,13 +235,15 @@ export class OpportunitiesPage implements OnInit, OnDestroy {
   protected readonly estados = ['Recebendo propostas', 'Abertura futura', 'Prazo encerrado', 'Sem prazo confirmado', 'Suspensa'];
   protected readonly modalidades = Object.entries(MODALIDADES).map(([k, v]) => [Number(k), v] as [number, string]);
   protected readonly relevancias = Object.entries(LABEL_TEXT).filter(([k]) => k !== 'fora');
+  protected readonly aderencias = Object.entries(AGIL_CHIP).filter(([k]) => k !== 'fora');
+  protected readonly agilText = AGIL_TEXT; protected readonly agilTone = agilTone;
   protected readonly labelText = LABEL_TEXT;
   protected readonly watchText = WATCH_TEXT;
   protected readonly fmtDate = fmtDate; protected readonly fmtDay = fmtDay; protected readonly fmtMoney = fmtMoney;
   protected readonly fmtRelative = fmtRelative; protected readonly fmtInt = fmtInt; protected readonly deadlineTone = deadlineTone; protected readonly stateTone = stateTone;
 
-  text = ''; uf = ''; modalidade: number[] = []; relevancia: string[] = []; estado: string[] = [];
-  savedId: number | null = null; sort = 'relevancia';
+  text = ''; uf = ''; modalidade: number[] = []; relevancia: string[] = []; estado: string[] = []; aderencia: string[] = []; incluirFora = false;
+  savedId: number | null = null; sort = 'agil';
   protected readonly quick = signal<Quick>('todas');
   protected readonly more = signal(false);
   protected readonly rows = signal<Row[]>([]);
@@ -259,19 +273,20 @@ export class OpportunitiesPage implements OnInit, OnDestroy {
   protected filter(): Row {
     const q = this.quick();
     return {
-      text: this.text, uf: this.uf ? [this.uf] : [], modalidade: this.modalidade, relevancia: q === 'alta' ? ['alta'] : this.relevancia,
-      estado: q === 'abertas' ? ['Recebendo propostas'] : this.estado, prazoDias: q === 'encerram7' ? 7 : null,
+      text: this.text, uf: this.uf ? [this.uf] : [], modalidade: this.modalidade, relevancia: this.relevancia,
+      aderencia: q === 'agil' ? ['nucleo', 'plenario', 'compilacao'] : this.aderencia, incluirFora: this.incluirFora || undefined,
+      estado: q === 'abertas' ? ['Recebendo propostas'] : q === 'agil' ? ['Recebendo propostas', 'Abertura futura'] : this.estado, prazoDias: q === 'encerram7' ? 7 : null,
       watch: q === 'acompanhadas' ? 'acompanhadas' : 'todas', sort: this.sort, dir: this.sort === 'prazo' || this.sort === 'orgao' ? 'asc' : 'desc',
       page: this.page(), pageSize: this.pageSize,
     };
   }
-  protected hasFilters(): boolean { return !!(this.text || this.uf || this.modalidade.length || this.relevancia.length || this.estado.length || this.quick() !== 'todas'); }
+  protected hasFilters(): boolean { return !!(this.text || this.uf || this.modalidade.length || this.relevancia.length || this.estado.length || this.aderencia.length || this.incluirFora || this.quick() !== 'todas'); }
   protected setQuick(q: Quick): void { this.quick.set(this.quick() === q ? 'todas' : q); this.search(); }
   protected toggle<T>(arr: T[], v: T): void { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); this.search(); }
   protected debounced(): void { if (this.typing) clearTimeout(this.typing); this.typing = setTimeout(() => this.search(), 300); }
   protected search(): void { this.page.set(1); void this.load(); }
   protected clear(): void {
-    this.text = ''; this.uf = ''; this.modalidade = []; this.relevancia = []; this.estado = []; this.savedId = null; this.quick.set('todas');
+    this.text = ''; this.uf = ''; this.modalidade = []; this.relevancia = []; this.estado = []; this.aderencia = []; this.incluirFora = false; this.savedId = null; this.quick.set('todas');
     this.search();
   }
   protected goto(p: number): void { this.page.set(Math.min(this.pages(), Math.max(1, p))); void this.load(); document.getElementById('conteudo')?.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -291,7 +306,7 @@ export class OpportunitiesPage implements OnInit, OnDestroy {
     const f = this.saved().find((x) => x['id'] === this.savedId)?.['filter'];
     if (!f) return;
     this.text = f.text ?? ''; this.uf = f.uf?.[0] ?? ''; this.modalidade = f.modalidade ?? []; this.relevancia = f.relevancia ?? [];
-    this.estado = f.estado ?? []; this.quick.set('todas'); this.search();
+    this.estado = f.estado ?? []; this.aderencia = f.aderencia ?? []; this.incluirFora = !!f.incluirFora; this.quick.set('todas'); this.search();
   }
   protected readonly naming = signal(false);
   filterName = '';

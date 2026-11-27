@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { classifyMarket } from '../market.ts';
 import { makeStore, rec, makeEngine, fakeFetch, page } from './helpers.ts';
 import { normalizeProcurement } from '../pncp.ts';
-import { marketOverview, marketList, marketCsv } from '../query.ts';
+import { marketOverview, marketList, marketCsv, listOpportunities } from '../query.ts';
 
 const cat = (objeto: string) => classifyMarket(objeto);
 
@@ -101,8 +101,9 @@ test('mercado: coleta registra software de qualquer órgão, mesmo o que sai do 
   assert.equal(marketList(env.store, { text: 'regulação' }).total, 1);
   assert.equal(marketList(env.store, { uf: ['ES'] }).rows[0].primary_category, 'legislativo');
   assert.equal(marketList(env.store, { abertas: true }).total, 4);
-  // o nicho continua só com o legislativo
-  assert.equal(env.db.get<any>('SELECT COUNT(*) c FROM procurements').c, 1);
+  // o nicho continua só com o legislativo: quem foi candidato e saiu do perfil fica guardado, mas fora da lista
+  assert.equal(env.db.get<any>("SELECT COUNT(*) c FROM procurements WHERE relevance!='fora'").c, 1);
+  assert.equal(listOpportunities(env.store, {}).total, 1);
   assert.ok(marketCsv(env.store, {}).includes('Saúde'));
 });
 

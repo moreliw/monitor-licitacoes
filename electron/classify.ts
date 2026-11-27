@@ -19,7 +19,7 @@ export const LABEL_TEXT: Record<Label, string> = {
 };
 
 export const DEFAULT_RULES: RuleSet = {
-  version: '2026.11.4',
+  version: '2026.11.5',
   params: { funcoesMinimas: 2 },
   orgPatterns: [
     'camara municipal', 'camara de vereadores', 'camara legislativa', 'assembleia legislativa',
@@ -44,6 +44,10 @@ export const DEFAULT_RULES: RuleSet = {
       pattern: '\\bgerenciamento de atividades legislativas' },
     { id: 'central-pl-eletronico', group: 'central', weight: 9, label: 'Processo legislativo eletrônico/digital',
       pattern: '\\bprocessos? legislativos? (?:eletronicos?|digita(?:l|is)|virtua(?:l|is)|informatizados?)' },
+    { id: 'central-plenario', group: 'central', weight: 9, label: 'Software de plenário / votação',
+      pattern: '\\b(?:software|sistema|solucao|plataforma|aplicativo)\\b(?:\\s+\\w+){0,6}?\\s+(?:de |da |das |do )?(?:votacao eletronica|painel eletronico|sessoes (?:legislativas|plenarias)|automacao (?:do |de )?plenario|gerenciamento (?:do |de )?plenario|plenario (?:digital|virtual))' },
+    { id: 'central-repositorio', group: 'central', weight: 9, label: 'Repositório / compilação legislativa',
+      pattern: '\\brepositorio legislativo|\\bcompilacao (?:e consolidacao )?(?:da|das|de) (?:legislacao|leis|normas)' },
     // Funções
     { id: 'func-processo-leg', group: 'funcao', weight: 3, label: 'Processo legislativo', pattern: '\\bprocessos? legislativos?' },
     { id: 'func-materias', group: 'funcao', weight: 3, label: 'Matérias legislativas', pattern: '\\bmaterias? legislativas?' },
@@ -56,6 +60,9 @@ export const DEFAULT_RULES: RuleSet = {
     { id: 'func-atos', group: 'funcao', weight: 3, label: 'Atos normativos', pattern: '\\batos normativos' },
     { id: 'func-legcompilada', group: 'funcao', weight: 3, label: 'Legislação compilada', pattern: '\\b(?:legislacao compilada|compilacao de legislacao|consolidacao de normas)' },
     { id: 'func-executivo', group: 'funcao', weight: 2, label: 'Integração ao Executivo', pattern: '\\bintegracao (?:com|ao|do) (?:o )?(?:poder )?executivo' },
+    { id: 'func-atividades-parlamentares', group: 'funcao', weight: 2, label: 'Atividades parlamentares', pattern: '\\batividades? parlamentares?|\\btrabalhos legislativos' },
+    { id: 'func-sessoes', group: 'funcao', weight: 2, label: 'Sessões legislativas', pattern: '\\bsess(?:ao|oes) (?:legislativas?|plenarias?|ordinarias?)' },
+    { id: 'func-emendas', group: 'funcao', weight: 2, label: 'Emendas parlamentares', pattern: '\\bemendas? (?:parlamentares?|impositivas?)' },
     { id: 'aux-parlamentares', group: 'auxiliar', weight: 0.5, label: 'Parlamentares/vereadores', pattern: '\\b(?:parlamentares|vereadores)\\b' },
     // Tecnologia e fornecimento
     { id: 'tec-software', group: 'tecnologia', weight: 1.5, label: 'Software / SaaS',
@@ -87,6 +94,8 @@ export const DEFAULT_RULES: RuleSet = {
       pattern: '\\b(?:e ?mail corporativo|google workspace|microsoft|office 365|pacote office|adobe|teamviewer|acesso remoto|kaspersky|antivirus|protecao digital|firewall|seguranca da informacao|seguranca de rede|backup|veeam|endpoint|infraestrutura de (?:ti|tecnologia))' },
     { id: 'neg-administrativo', group: 'negativo', weight: -4, label: 'Bens e serviços administrativos',
       pattern: '\\b(?:veiculos? automotor(?:es)?|locacao de veiculos?|combustivel|catracas?|controle de acesso de pedestres|ponto eletronico|registro de ponto|mobiliario)\\b' },
+    { id: 'neg-servicos', group: 'negativo', weight: -4, label: 'Serviços não relacionados (viagens, publicidade, saúde, assessoria tributária)',
+      pattern: '\\b(?:assessoria (?:e consultoria )?tributaria|consultoria tributaria|passagens aereas|agenciamento de viagens|viagens aereas|diarias e passagens|espacos publicitarios|publicidade institucional|saude e seguranca (?:no|do) trabalho|exames (?:clinicos )?ocupacionais|auxilio alimentacao|cartao (?:magnetico|alimentacao)|abastecimento de combustive)' },
     { id: 'neg-obras', group: 'negativo', weight: -4, label: 'Obras / reforma', pattern: '\\b(?:obras?|reforma predial|construcao civil|engenharia)\\b' },
     { id: 'neg-infra', group: 'negativo', weight: -4, label: 'Infraestrutura / telecom / segurança',
       pattern: '\\b(?:link (?:de internet|dedicado)|acesso a internet|internet dedicada|telefonia|antivirus|certificados? digita(?:l|is)|cftv|videomonitoramento|cameras? de seguranca)' },

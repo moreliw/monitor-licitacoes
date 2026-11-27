@@ -28,6 +28,10 @@ export interface Settings {
   baseDesatualizadaHoras: number;
   /** Por padrão só contratações do nicho (processo legislativo) são guardadas; o restante é analisado e descartado. */
   guardarForaDoPerfil: boolean;
+  /** Oportunidades abertas com aderência ao Ágil entram sozinhas em "Triagem" (recebem lembretes de prazo). */
+  acompanharAlvosAgil: boolean;
+  /** Cópias diárias do banco guardadas em dados/backups. */
+  backupsManter: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -57,6 +61,8 @@ export const DEFAULT_SETTINGS: Settings = {
   retencaoAnexosDias: 90,
   baseDesatualizadaHoras: 24,
   guardarForaDoPerfil: false,
+  acompanharAlvosAgil: true,
+  backupsManter: 14,
 };
 
 const LIMITS: Partial<Record<keyof Settings, [number, number]>> = {
@@ -64,7 +70,7 @@ const LIMITS: Partial<Record<keyof Settings, [number, number]>> = {
   concorrencia: [1, 4], tamanhoPagina: [10, 50], sobreposicaoDias: [0, 10], orcamentoMinutos: [1, 240],
   maxPaginasJanela: [10, 5000], maxRequisicoesPorMinuto: [10, 600], maxDocBytes: [102400, 200 * 1024 * 1024],
   maxDocPaginas: [1, 2000], docTimeoutMs: [5000, 600_000], maxDocsPorExecucao: [0, 500],
-  retencaoLogDias: [1, 365], retencaoAnexosDias: [1, 3650], baseDesatualizadaHoras: [1, 720],
+  retencaoLogDias: [1, 365], retencaoAnexosDias: [1, 3650], baseDesatualizadaHoras: [1, 720], backupsManter: [1, 90],
 };
 
 export function sanitizeSettings(input: Partial<Settings>, base: Settings = DEFAULT_SETTINGS): Settings {

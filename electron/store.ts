@@ -5,6 +5,7 @@ import { ACTIVE_STATES, deriveState, type DerivedState } from './states.ts';
 import { SettingsStore, type Settings } from './settings.ts';
 import { fmtBrasilia } from './time.ts';
 import { classifyMarket, MARKET_VERSION } from './market.ts';
+import { agilFit, AGIL_VERSION, ALVOS, ADERENCIA_TEXT, type AgilFit } from './agil.ts';
 
 export interface UpsertContext {
   /** Importação inicial: histórico visível, sem avisos retroativos. */
@@ -46,7 +47,7 @@ export class Store {
     if (!this.rulesCache) {
       const raw = this.settings.getRaw('rules');
       // Regras salvas idênticas a uma versão padrão anterior são atualizadas para o padrão vigente.
-      const outdatedDefault = raw && ['2026.11.1', '2026.11.2', '2026.11.3'].includes(raw.version);
+      const outdatedDefault = raw && ['2026.11.1', '2026.11.2', '2026.11.3', '2026.11.4'].includes(raw.version);
       try { this.rulesCache = raw && !outdatedDefault ? validateRuleSet(raw) : DEFAULT_RULES; } catch { this.rulesCache = DEFAULT_RULES; }
     }
     return this.rulesCache;
@@ -300,11 +301,28 @@ export class Store {
     });
   }
 
-  private docPriority(d: NormalizedDocument): number {
-    const t = `${d.titulo ?? ''} ${d.tipoNome ?? ''}`.toLowerCase();
-    if (/termo de refer|projeto b[aá]sico|anexo i\b/.test(t)) return 90;
+  /** Edital e TR primeiro; depois retificações e respostas, ETP, anexos e atas de julgamento. */
+  docPriority(d: { titulo: string | null; tipoNome: string | null }): number {
+    const t = `${d.titulo ?? ''} ${d.tipoNome ?? ''}`.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[_\-.]+/g, ' ');
     if (/edital|aviso de contrata/.test(t)) return 100;
+    if (/termo de refer|projeto basico|anexo i\b|\btr\b/.test(t)) return 90;
+    if (/retifica|esclarecimento|impugna|resposta|errata|adendo|comunicado/.test(t)) return 85;
+    if (/estudo tecnico|\betp\b|\bdfd\b|formalizacao de demanda/.test(t)) return 80;
+    if (/anexo|minuta|prova de conceito|roteiro/.test(t)) return 70;
+    if (/\bata\b|julgamento|resultado|recurso|contrarraz|parecer|relatorio/.test(t)) return 60;
     return 10;
+  }
+
+  /** Recalcula a prioridade de anexos já listados (regra de prioridade mudou). */
+  recomputeDocPriorities(): number {
+    let n = 0;
+    this.db.tx(() => {
+      for (const d of this.db.all<Row>('SELECT id, titulo, tipo_nome, priority FROM documents')) {
+        const p = this.docPriority({ titulo: d.titulo, tipoNome: d.tipo_nome });
+        if (p !== d.priority) { this.db.run('UPDATE documents SET priority=? WHERE id=?', p, d.id); n++; }
+      }
+    });
+    return n;
   }
 
   saveDocuments(procId: number, docs: NormalizedDocument[]): void {
@@ -368,11 +386,60 @@ export class Store {
       const effective = manual ?? result.label; // decisões manuais são preservadas
       this.db.run('UPDATE procurements SET relevance=?, relevance_score=? WHERE id=?', effective, result.score, procId);
       this.refreshFts(procId);
+      // quem já foi candidato do nicho nunca sai do acervo por reclassificação posterior
+      if (effective !== 'fora') this.db.run('UPDATE procurements SET ever_candidate=1 WHERE id=?', procId);
       if (effective === 'alta' || effective === 'revisar') {
         this.addEvent(procId, 'nova_publicacao', `nova:${procId}`, { relevancia: effective, score: result.score }, silent);
       }
+      return effective;
+    });
+    const p2 = this.db.get<Row>('SELECT relevance FROM procurements WHERE id=?', procId);
+    this.computeAgilFit(procId, {
+      relevance: p2?.relevance ?? result.label,
+      items: items.map((i) => [i.descricao, i.info_complementar].filter(Boolean).join(' ')),
+      docs: docs.map((d) => String(d.text)),
     });
     return result;
+  }
+
+  // ---------- aderência ao Ágil ----------
+  /** Calcula e grava a aderência ao Ágil; acompanha sozinho os alvos abertos (uma vez por oportunidade). */
+  computeAgilFit(procId: number, pre?: { relevance: string; items: string[]; docs: string[] }): AgilFit | null {
+    const p = this.db.get<Row>('SELECT * FROM procurements WHERE id=?', procId);
+    if (!p) return null;
+    const items = pre?.items ?? this.db.all<Row>('SELECT descricao, info_complementar FROM items WHERE procurement_id=?', procId)
+      .map((i) => [i.descricao, i.info_complementar].filter(Boolean).join(' '));
+    const docs = pre?.docs ?? this.db.all<Row>(
+      `SELECT dp.text FROM doc_pages dp JOIN documents d ON d.id=dp.document_id WHERE d.procurement_id=? ORDER BY d.priority DESC, dp.page LIMIT 600`, procId)
+      .map((d) => String(d.text));
+    const fit = agilFit({ objeto: p.objeto, info: p.info_complementar, items, docs, relevance: pre?.relevance ?? p.relevance });
+    this.db.run(
+      `INSERT INTO agil_fit (procurement_id, version, aderencia, score, resumo, temas, bloqueios, lacunas, computed_at) VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(procurement_id) DO UPDATE SET version=excluded.version, aderencia=excluded.aderencia, score=excluded.score, resumo=excluded.resumo,
+         temas=excluded.temas, bloqueios=excluded.bloqueios, lacunas=excluded.lacunas, computed_at=excluded.computed_at`,
+      procId, fit.version, fit.aderencia, fit.score, fit.resumo, JSON.stringify(fit.temas), JSON.stringify(fit.bloqueios), JSON.stringify(fit.lacunas), this.now(),
+    );
+    this.autoWatch(procId, fit);
+    return fit;
+  }
+
+  private autoWatch(procId: number, fit: AgilFit): void {
+    if (!this.settings.get().acompanharAlvosAgil || !ALVOS.includes(fit.aderencia)) return;
+    const p = this.db.get<Row>(
+      `SELECT p.derived_state, p.encerramento_utc, f.auto_watch_at, w.procurement_id AS w FROM procurements p
+       JOIN agil_fit f ON f.procurement_id=p.id LEFT JOIN watchlist w ON w.procurement_id=p.id WHERE p.id=?`, procId);
+    if (!p || p.w || p.auto_watch_at) return; // já acompanhada, ou já foi uma vez (respeita quem tirou)
+    if (!ACTIVE_STATES.includes(p.derived_state) || (p.encerramento_utc && Date.parse(p.encerramento_utc) <= this.clock().getTime())) return;
+    this.setWatch(procId, { status: 'triagem', notes: `Acompanhamento automático: aderência ao Ágil (${ADERENCIA_TEXT[fit.aderencia]}, ${fit.score}/100).` });
+    this.db.run('UPDATE agil_fit SET auto_watch_at=? WHERE procurement_id=?', this.now(), procId);
+  }
+
+  /** Recalcula a aderência de quem não tem cálculo ou foi calculado com outro catálogo. */
+  refreshAgilFits(): number {
+    const ids = this.db.all<{ id: number }>(
+      'SELECT p.id FROM procurements p LEFT JOIN agil_fit f ON f.procurement_id=p.id WHERE f.procurement_id IS NULL OR f.version != ?', AGIL_VERSION);
+    for (const r of ids) this.computeAgilFit(r.id);
+    return ids.length;
   }
 
   /**
@@ -450,7 +517,8 @@ export class Store {
     const target = `SELECT p.id FROM procurements p
        WHERE p.relevance='fora'
          AND NOT EXISTS (SELECT 1 FROM classifications c WHERE c.procurement_id=p.id AND c.label_manual IS NOT NULL)
-         AND NOT EXISTS (SELECT 1 FROM watchlist w WHERE w.procurement_id=p.id)`;
+         AND NOT EXISTS (SELECT 1 FROM watchlist w WHERE w.procurement_id=p.id)
+         AND p.ever_candidate=0`;
     return this.db.tx(() => {
       // em lote: FTS por rowid e exclusões em cascata indexadas
       this.db.run(`DELETE FROM search_fts WHERE rowid IN (${target})`);
@@ -469,7 +537,9 @@ export class Store {
       this.db.run('UPDATE classifications SET label_manual=? WHERE procurement_id=?', label, procId);
       const c = this.db.get<Row>('SELECT label_auto FROM classifications WHERE procurement_id=?', procId);
       if (c) this.db.run('UPDATE procurements SET relevance=? WHERE id=?', label ?? c.label_auto, procId);
+      if (label && label !== 'fora') this.db.run('UPDATE procurements SET ever_candidate=1 WHERE id=?', procId);
     });
+    this.computeAgilFit(procId);
   }
 
   refreshFts(procId: number): void {

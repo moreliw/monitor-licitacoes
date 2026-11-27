@@ -73,6 +73,7 @@ import { Icon } from '../icon';
               <label class="switch"><input type="checkbox" [(ngModel)]="form.iniciarComWindows" /> Iniciar com o Windows (minimizado na bandeja)</label>
               <label class="switch"><input type="checkbox" [(ngModel)]="form.fecharParaBandeja" /> Fechar para a bandeja (encerre pelo menu da bandeja)</label>
               <label class="switch"><input type="checkbox" [(ngModel)]="form.guardarForaDoPerfil" /> Guardar também contratações fora do nicho (auditoria das regras)</label>
+              <label class="switch"><input type="checkbox" [(ngModel)]="form.acompanharAlvosAgil" /> Acompanhar sozinho as oportunidades abertas com aderência ao Ágil</label>
             </div>
             <div class="card-body grid-fields" style="padding-top:0">
               <label class="field">Lembretes antes do prazo <small>horas, separadas por vírgula</small><input type="text" [(ngModel)]="lembretesText" /></label>
@@ -91,6 +92,7 @@ import { Icon } from '../icon';
               <label class="field">Anexos por execução<input type="number" [(ngModel)]="form.maxDocsPorExecucao" /></label>
               <label class="field">Retenção de registros (dias)<input type="number" [(ngModel)]="form.retencaoLogDias" /></label>
               <label class="field">Retenção de anexos (dias)<input type="number" [(ngModel)]="form.retencaoAnexosDias" /></label>
+              <label class="field">Cópias diárias do banco guardadas<input type="number" [(ngModel)]="form.backupsManter" /></label>
             </div>
           </section>
         }

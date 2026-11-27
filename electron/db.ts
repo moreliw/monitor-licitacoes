@@ -279,6 +279,39 @@ CREATE INDEX ix_mkt_uf ON market_items(uf);
 CREATE INDEX ix_mkt_state ON market_items(derived_state);
 `,
   },
+  {
+    version: 4,
+    name: 'acervo-sem-perdas-e-aderencia-agil',
+    // ever_candidate: quem já foi candidato do nicho nunca sai do acervo por reclassificação.
+    // Anexos marcados como inexistentes pela URL antiga (antes da 1.3.4) e ZIPs não lidos voltam para a fila.
+    sql: `
+ALTER TABLE procurements ADD COLUMN ever_candidate INTEGER NOT NULL DEFAULT 0;
+UPDATE procurements SET ever_candidate=1
+ WHERE relevance != 'fora'
+    OR id IN (SELECT procurement_id FROM events WHERE type='nova_publicacao')
+    OR id IN (SELECT procurement_id FROM watchlist)
+    OR id IN (SELECT procurement_id FROM classifications WHERE label_manual IS NOT NULL);
+CREATE INDEX IF NOT EXISTS ix_proc_compra ON procurements(cnpj, ano, numero_compra);
+ALTER TABLE documents ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+UPDATE documents SET status='pendente', error=NULL, attempts=0
+ WHERE status='erro' AND (error LIKE 'Anexo n_o encontrado%' OR error LIKE 'HTTP 4%');
+UPDATE documents SET status='pendente', error=NULL
+ WHERE status='ignorado' AND error LIKE '%(zip)%';
+CREATE TABLE agil_fit (
+  procurement_id INTEGER PRIMARY KEY REFERENCES procurements(id) ON DELETE CASCADE,
+  version TEXT NOT NULL,
+  aderencia TEXT NOT NULL,
+  score INTEGER NOT NULL,
+  resumo TEXT NOT NULL,
+  temas TEXT NOT NULL,
+  bloqueios TEXT NOT NULL,
+  lacunas TEXT NOT NULL,
+  computed_at TEXT NOT NULL,
+  auto_watch_at TEXT
+);
+CREATE INDEX ix_agil_aderencia ON agil_fit(aderencia);
+`,
+  },
 ];
 
 export class Db {

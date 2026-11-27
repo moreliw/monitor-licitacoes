@@ -6,6 +6,7 @@ import { LABEL_TEXT } from './classify.ts';
 import { fmtBrasilia } from './time.ts';
 import { ymd } from './time.ts';
 import { CATEGORY_LABEL, ESFERA_LABEL } from './market.ts';
+import { ADERENCIA_TEXT } from './agil.ts';
 
 export interface OppFilter {
   text?: string;
@@ -16,7 +17,11 @@ export interface OppFilter {
   estado?: string[];
   prazoDias?: number | null; // encerramento nos próximos N dias
   watch?: 'todas' | 'acompanhadas' | 'favoritas' | 'triagem' | 'analise' | 'descartada';
-  sort?: 'prazo' | 'publicacao' | 'relevancia' | 'orgao' | 'valor';
+  /** Aderência ao Ágil (nucleo, plenario, compilacao, complemento, condicionada, fora). */
+  aderencia?: string[];
+  /** Inclui o que está fora do perfil (por padrão só aparece se acompanhado ou com decisão manual). */
+  incluirFora?: boolean;
+  sort?: 'prazo' | 'publicacao' | 'relevancia' | 'orgao' | 'valor' | 'agil';
   dir?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
@@ -29,17 +34,34 @@ const SORTS: Record<string, string> = {
   relevancia: "(p.derived_state IN ('Recebendo propostas','Abertura futura')) DESC, p.relevance_score",
   orgao: 'p.orgao_nome COLLATE NOCASE',
   valor: 'p.valor_estimado_cents',
+  // abertas primeiro, depois aderência ao Ágil
+  agil: "(p.derived_state IN ('Recebendo propostas','Abertura futura')) DESC, COALESCE(f.score, 0)",
 };
+
+const FROM = `
+  FROM procurements p
+  LEFT JOIN classifications c ON c.procurement_id=p.id
+  LEFT JOIN watchlist w ON w.procurement_id=p.id
+  LEFT JOIN agil_fit f ON f.procurement_id=p.id`;
 
 const SELECT = `
   SELECT p.id, p.control_id, p.source, p.orgao_nome, p.unidade_nome, p.municipio, p.uf, p.objeto, p.modalidade_id, p.modalidade_nome,
     p.situacao_nome, p.derived_state, p.relevance, p.relevance_score, p.data_publicacao, p.encerramento_utc, p.abertura_utc, p.prazo_origem,
     p.valor_estimado_cents, p.valor_homologado_cents, p.orcamento_sigiloso, p.link_pncp, p.link_origem, p.not_found_at, p.missing_count,
     (c.label_manual IS NOT NULL) AS manual, c.label_auto,
-    w.status AS watch_status, COALESCE(w.favorito,0) AS favorito
-  FROM procurements p
-  LEFT JOIN classifications c ON c.procurement_id=p.id
-  LEFT JOIN watchlist w ON w.procurement_id=p.id`;
+    w.status AS watch_status, COALESCE(w.favorito,0) AS favorito,
+    f.aderencia AS agil_aderencia, f.score AS agil_score, f.resumo AS agil_resumo, f.bloqueios AS agil_bloqueios, f.lacunas AS agil_lacunas,
+    (SELECT COUNT(*) FROM procurements q WHERE q.cnpj=p.cnpj AND q.ano=p.ano AND q.numero_compra=p.numero_compra
+       AND q.modalidade_id=p.modalidade_id AND q.id<>p.id) AS republicacoes,
+    (p.encerramento_utc IS NOT NULL AND p.data_publicacao IS NOT NULL AND p.data_publicacao > p.encerramento_utc) AS datas_a_conferir
+  ${FROM}`;
+
+function parseFit<T extends Row>(r: T): T {
+  for (const k of ['agil_bloqueios', 'agil_lacunas']) {
+    try { (r as Row)[k] = r[k] ? JSON.parse(r[k]) : []; } catch { (r as Row)[k] = []; }
+  }
+  return r;
+}
 
 export function buildWhere(f: OppFilter, nowIso: string): { where: string; params: SqlValue[] } {
   const w: string[] = [];
@@ -66,30 +88,44 @@ export function buildWhere(f: OppFilter, nowIso: string): { where: string; param
     case 'favoritas': w.push('w.favorito=1'); break;
     case 'triagem': case 'analise': case 'descartada': w.push('w.status=?'); params.push(f.watch); break;
   }
+  inList('f.aderencia', f.aderencia);
+  // o acervo guarda o que já foi candidato e depois saiu do perfil; por padrão isso fica fora da lista
+  if (!f.incluirFora && !f.relevancia?.includes('fora')) w.push("(p.relevance!='fora' OR w.procurement_id IS NOT NULL OR c.label_manual IS NOT NULL)");
   return { where: w.length ? 'WHERE ' + w.join(' AND ') : '', params };
+}
+
+/** Com "guardar fora do perfil" ligado, o usuário quer ver também o que está fora do nicho. */
+function withProfile(store: Store, f: OppFilter): OppFilter {
+  return f.incluirFora === undefined && store.getSettings().guardarForaDoPerfil ? { ...f, incluirFora: true } : f;
 }
 
 export function listOpportunities(store: Store, f: OppFilter): { rows: Row[]; total: number; page: number; pageSize: number } {
   const pageSize = Math.min(200, Math.max(5, f.pageSize ?? 25));
   const page = Math.max(1, f.page ?? 1);
-  const { where, params } = buildWhere(f, store.now());
+  const { where, params } = buildWhere(withProfile(store, f), store.now());
   const sort = SORTS[f.sort ?? 'publicacao'] ?? SORTS['publicacao'];
   const dir = f.dir === 'asc' ? 'ASC' : 'DESC';
-  const total = store.db.get<{ c: number }>(
-    `SELECT COUNT(*) AS c FROM procurements p LEFT JOIN watchlist w ON w.procurement_id=p.id ${where}`, ...params)!.c;
-  const rows = store.db.all(`${SELECT} ${where} ORDER BY ${sort} ${dir}, p.id DESC LIMIT ? OFFSET ?`, ...params, pageSize, (page - 1) * pageSize);
+  const total = store.db.get<{ c: number }>(`SELECT COUNT(*) AS c ${FROM} ${where}`, ...params)!.c;
+  const rows = store.db.all(`${SELECT} ${where} ORDER BY ${sort} ${dir}, p.id DESC LIMIT ? OFFSET ?`, ...params, pageSize, (page - 1) * pageSize).map(parseFit);
   return { rows, total, page, pageSize };
 }
 
 export function getOpportunity(store: Store, id: number): Row | null {
   const db = store.db;
-  const p = db.get<Row>(`${SELECT} WHERE p.id=?`, id);
-  if (!p) return null;
+  const p0 = db.get<Row>(`${SELECT} WHERE p.id=?`, id);
+  if (!p0) return null;
+  const p = parseFit(p0);
   const full = db.get<Row>('SELECT * FROM procurements WHERE id=?', id)!;
   const cls = db.get<Row>('SELECT * FROM classifications WHERE procurement_id=?', id);
   const watch = db.get<Row>('SELECT * FROM watchlist WHERE procurement_id=?', id);
+  const fit = db.get<Row>('SELECT * FROM agil_fit WHERE procurement_id=?', id);
   return {
     ...p,
+    agil: fit ? { ...fit, temas: JSON.parse(fit.temas), bloqueios: JSON.parse(fit.bloqueios), lacunas: JSON.parse(fit.lacunas) } : null,
+    republicacoes_lista: db.all(
+      `SELECT id, control_id, data_publicacao, derived_state, link_pncp FROM procurements
+       WHERE cnpj=? AND ano=? AND numero_compra=? AND modalidade_id=? AND id<>? ORDER BY data_publicacao DESC`,
+      full.cnpj, full.ano, full.numero_compra, full.modalidade_id, id),
     detail: full,
     classification: cls ? { ...cls, evidences: JSON.parse(cls.evidences) } : null,
     items: db.all('SELECT * FROM items WHERE procurement_id=? ORDER BY numero_item', id),
@@ -121,16 +157,20 @@ export function searchDocumentExcerpts(store: Store, id: number, q: string): Row
 const fmtMoney = (c: number | null) => (c === null || c === undefined ? '' : (c / 100).toFixed(2).replace('.', ','));
 
 export function exportCsv(store: Store, f: OppFilter): string {
-  const { where, params } = buildWhere(f, store.now());
+  const { where, params } = buildWhere(withProfile(store, f), store.now());
   const sort = SORTS[f.sort ?? 'publicacao'] ?? SORTS['publicacao'];
-  const rows = store.db.all<Row>(`${SELECT} ${where} ORDER BY ${sort} ${f.dir === 'asc' ? 'ASC' : 'DESC'} LIMIT 50000`, ...params);
+  const rows = store.db.all<Row>(`${SELECT} ${where} ORDER BY ${sort} ${f.dir === 'asc' ? 'ASC' : 'DESC'} LIMIT 50000`, ...params).map(parseFit);
   return toCsv(
-    ['Número de controle PNCP', 'Órgão', 'Município', 'UF', 'Modalidade', 'Objeto', 'Relevância', 'Situação', 'Publicação', 'Encerramento de propostas', 'Valor estimado (R$)', 'Orçamento', 'Acompanhamento', 'Link PNCP', 'Portal de origem'],
+    ['Número de controle PNCP', 'Órgão', 'Município', 'UF', 'Modalidade', 'Objeto', 'Relevância', 'Situação', 'Publicação', 'Encerramento de propostas', 'Valor estimado (R$)', 'Orçamento', 'Acompanhamento',
+      'Aderência ao Ágil', 'Pontuação Ágil', 'A desenvolver no Ágil', 'Fora do Ágil (parceria ou enquadramento)', 'Republicações', 'Link PNCP', 'Portal de origem'],
     rows.map((r) => [
       r.control_id, r.orgao_nome, r.municipio, r.uf, r.modalidade_nome, r.objeto, LABEL_TEXT[r.relevance as keyof typeof LABEL_TEXT] ?? r.relevance,
       r.derived_state, fmtBrasilia(r.data_publicacao), fmtBrasilia(r.encerramento_utc), fmtMoney(r.valor_estimado_cents),
       r.orcamento_sigiloso === 1 ? 'Sigiloso' : r.valor_estimado_cents === null ? 'Não publicado' : 'Publicado',
-      r.watch_status ?? '', r.link_pncp, r.link_origem,
+      r.watch_status ?? '',
+      r.agil_aderencia ? ADERENCIA_TEXT[r.agil_aderencia as keyof typeof ADERENCIA_TEXT] ?? r.agil_aderencia : '', r.agil_score ?? '',
+      (r.agil_lacunas as string[]).join(' | '), (r.agil_bloqueios as string[]).join(' | '), r.republicacoes ?? 0,
+      r.link_pncp, r.link_origem,
     ]),
   );
 }
@@ -177,6 +217,12 @@ export function opportunityStats(store: Store): Row {
        SUM(relevance = 'revisar') AS revisar,
        SUM(relevance = 'pendente') AS pendente
      FROM procurements`, now, in7)!;
+  const agil = store.db.get<Row>(
+    `SELECT SUM(f.aderencia IN ('nucleo','plenario','compilacao')) AS alvos,
+       SUM(f.aderencia IN ('nucleo','plenario','compilacao') AND p.derived_state IN ('Recebendo propostas','Abertura futura')) AS alvosAbertos,
+       SUM(f.aderencia = 'condicionada' AND p.derived_state IN ('Recebendo propostas','Abertura futura')) AS condicionadasAbertas
+     FROM agil_fit f JOIN procurements p ON p.id=f.procurement_id`)!;
+  for (const [k, v] of Object.entries(agil)) r[k] = Number(v ?? 0);
   const watched = store.db.get<Row>("SELECT COUNT(*) AS c FROM watchlist WHERE status != 'descartada'")!.c;
   const unread = store.db.get<Row>("SELECT COUNT(*) AS c FROM notifications WHERE status = 'disparada'")!.c;
   const market = store.db.get<Row>("SELECT COUNT(*) AS c, SUM(derived_state IN ('Abertura futura','Recebendo propostas')) AS abertas FROM market_items")!;
